@@ -1,0 +1,21 @@
+<%- include('partials/header') %>
+<h1>Program committee</h1>
+<% if (!conferences.length) { %>
+  <div class="card empty">You haven't been added to a conference's program committee yet. An organiser can add you.</div>
+<% } %>
+<div class="grid">
+<% conferences.forEach(c => { const total = c.stats.total || 0, mine = c.stats.reviewed_by_me || 0; %>
+  <article class="card conf-card">
+    <span class="<%= badgeClass('cfp-' + c.cfpState) %>"><%= CFP_LABELS[c.cfpState] %></span>
+    <h2><a href="/review/conferences/<%= c.id %>"><%= c.name %></a></h2>
+    <p class="muted"><%= total %> active proposal<%= total === 1 ? '' : 's' %> · <%= c.stats.accepted || 0 %> accepted</p>
+    <div class="progress" title="<%= mine %> of <%= total %> reviewed by you"><span style="width: <%= total ? Math.round(100 * mine / total) : 0 %>%"></span></div>
+    <p class="small">You've reviewed <%= mine %> of <%= total %></p>
+    <div class="actions">
+      <a class="btn" href="/review/conferences/<%= c.id %>?todo=1">Review next</a>
+      <a class="btn btn-ghost" href="/review/conferences/<%= c.id %>">All proposals</a>
+    </div>
+  </article>
+<% }) %>
+</div>
+<%- include('partials/footer') %>

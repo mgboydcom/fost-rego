@@ -1,0 +1,31 @@
+<%- include('partials/header') %>
+<div class="row-between">
+  <h1>My proposals</h1>
+  <% if (openConfs.length) { %><a class="btn" href="/proposals/new">New proposal</a><% } %>
+</div>
+<% if (!proposals.length) { %>
+  <div class="card empty">
+    <p>You haven't submitted any proposals yet.</p>
+    <% if (openConfs.length) { %><a class="btn" href="/proposals/new">Submit your first proposal</a><% } else { %><p class="muted">No calls for proposals are open right now.</p><% } %>
+  </div>
+<% } else { %>
+<div class="table-wrap card flush">
+<table>
+  <thead><tr><th>Title</th><th>Conference</th><th>Format</th><th>Status</th><th>Last updated</th><th></th></tr></thead>
+  <tbody>
+  <% proposals.forEach(p => { %>
+    <tr>
+      <td><a href="/proposals/<%= p.id %>"><strong><%= p.title %></strong></a></td>
+      <td><%= p.conference_name %></td>
+      <td><%= p.format %></td>
+      <td><span class="<%= badgeClass(p.shownStatus) %>"><%= statusLabel(p.shownStatus) %></span>
+        <% if (p.shownStatus === 'accepted') { %><br><span class="small muted"><%= p.speaker_confirmation ? 'You ' + p.speaker_confirmation : 'Please confirm' %></span><% } %></td>
+      <td class="nowrap"><%= formatDate(p.updated_at) %></td>
+      <td class="nowrap"><% if (p.editable) { %><a href="/proposals/<%= p.id %>/edit">Edit</a><% } %></td>
+    </tr>
+  <% }) %>
+  </tbody>
+</table>
+</div>
+<% } %>
+<%- include('partials/footer') %>

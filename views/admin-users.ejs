@@ -1,0 +1,32 @@
+<%- include('partials/header') %>
+<p><a href="/admin">← Organiser dashboard</a></p>
+<div class="row-between">
+  <h1>People</h1>
+  <form method="get" class="inline-form"><input name="q" value="<%= q %>" placeholder="Search name, email, organisation" aria-label="Search"><button class="btn btn-small">Search</button></form>
+</div>
+<div class="table-wrap card flush">
+<table>
+  <thead><tr><th>Name</th><th>Email</th><th>Organisation</th><th class="num">Proposals</th><th>Joined</th><th>Role</th></tr></thead>
+  <tbody>
+  <% users.forEach(u => { %>
+    <tr>
+      <td><strong><%= u.name %></strong></td>
+      <td><a href="mailto:<%= u.email %>"><%= u.email %></a></td>
+      <td><%= u.organization %></td>
+      <td class="num"><%= u.proposal_count %></td>
+      <td class="nowrap"><%= formatDate(u.created_at) %></td>
+      <td>
+        <form method="post" action="/admin/users/<%= u.id %>/role" class="inline-form">
+          <input type="hidden" name="_csrf" value="<%= csrf %>">
+          <select name="role" onchange="this.form.submit()" aria-label="Role">
+            <% ['speaker','reviewer','admin'].forEach(r => { %><option <%= u.role === r ? 'selected' : '' %>><%= r %></option><% }) %>
+          </select>
+          <noscript><button class="btn btn-small">Save</button></noscript>
+        </form>
+      </td>
+    </tr>
+  <% }) %>
+  </tbody>
+</table>
+</div>
+<%- include('partials/footer') %>

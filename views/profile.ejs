@@ -1,0 +1,40 @@
+<%- include('partials/header') %>
+<h1>Your speaker profile</h1>
+<p class="muted">This information is shared with the program committee and, if your talk is accepted, used on the conference website and in speaker communications.</p>
+<div class="two-col">
+<section class="card">
+  <% if (error) { %><div class="flash flash-error"><%= error %></div><% } %>
+  <form method="post" action="/profile" class="form">
+    <input type="hidden" name="_csrf" value="<%= csrf %>">
+    <label>Full name <input name="name" value="<%= values.name %>" required></label>
+    <div class="field-row">
+      <label>Job title <input name="job_title" value="<%= values.job_title %>"></label>
+      <label>Organisation <input name="organization" value="<%= values.organization %>"></label>
+    </div>
+    <label>Short bio <span class="opt">third person, ~100 words</span>
+      <textarea name="bio" rows="6"><%= values.bio %></textarea></label>
+    <div class="field-row">
+      <label>Website <input name="website" value="<%= values.website %>" placeholder="https://"></label>
+      <label>Social handle(s) <input name="social" value="<%= values.social %>" placeholder="LinkedIn, Mastodon, Bluesky…"></label>
+    </div>
+    <div class="field-row">
+      <label>Phone <span class="opt">organisers only</span> <input name="phone" value="<%= values.phone %>"></label>
+      <label>Based in <input name="location" value="<%= values.location %>" placeholder="City, country"></label>
+    </div>
+    <label>Headshot URL <input name="photo_url" value="<%= values.photo_url %>" placeholder="https://…/photo.jpg"></label>
+    <button class="btn">Save profile</button>
+  </form>
+</section>
+<section class="card">
+  <h2>Account</h2>
+  <p><strong>Email:</strong> <%= user.email %><br><strong>Role:</strong> <%= user.role %></p>
+  <h3>Change password</h3>
+  <form method="post" action="/profile/password" class="form">
+    <input type="hidden" name="_csrf" value="<%= csrf %>">
+    <label>Current password <input type="password" name="current_password" required autocomplete="current-password"></label>
+    <label>New password <input type="password" name="new_password" minlength="8" required autocomplete="new-password"></label>
+    <button class="btn btn-ghost">Change password</button>
+  </form>
+</section>
+</div>
+<%- include('partials/footer') %>

@@ -1,0 +1,16 @@
+<%- include('partials/header') %>
+<section class="card narrow">
+  <h1>Create your speaker account</h1>
+  <p class="muted">One account lets you submit to any of our conferences and track every proposal in one place.</p>
+  <% if (error) { %><div class="flash flash-error"><%= error %></div><% } %>
+  <form method="post" action="/register" class="form">
+    <input type="hidden" name="_csrf" value="<%= csrf %>">
+    <label>Full name <input name="name" value="<%= values.name || '' %>" required autocomplete="name"></label>
+    <label>Email <input type="email" name="email" value="<%= values.email || '' %>" required autocomplete="email"></label>
+    <label>Organisation <span class="opt">optional</span> <input name="organization" value="<%= values.organization || '' %>" autocomplete="organization"></label>
+    <label>Password <span class="opt">at least 8 characters</span> <input type="password" name="password" minlength="8" required autocomplete="new-password"></label>
+    <button class="btn">Create account</button>
+  </form>
+  <p class="muted">Already registered? <a href="/login">Sign in</a>.</p>
+</section>
+<%- include('partials/footer') %>

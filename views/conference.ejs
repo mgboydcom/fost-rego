@@ -1,0 +1,17 @@
+<%- include('partials/header') %>
+<section class="card">
+  <span class="<%= badgeClass('cfp-' + conf.cfpState) %>"><%= CFP_LABELS[conf.cfpState] %></span>
+  <h1><%= conf.name %></h1>
+  <p class="muted"><%= [dateRange(conf.start_date, conf.end_date), conf.location].filter(Boolean).join(' · ') %>
+    <% if (conf.website) { %> · <a href="<%= safeUrl(conf.website) %>" rel="noopener" target="_blank">Website</a><% } %></p>
+  <div class="prose"><%= conf.description %></div>
+  <dl class="facts">
+    <% if (conf.cfp_opens) { %><dt>CFP opens</dt><dd><%= formatDate(conf.cfp_opens) %></dd><% } %>
+    <% if (conf.cfp_closes) { %><dt>CFP closes</dt><dd><%= formatDate(conf.cfp_closes) %> (end of day)</dd><% } %>
+    <% if (conf.trackList.length) { %><dt>Tracks</dt><dd><%= conf.trackList.join(' · ') %></dd><% } %>
+    <dt>Session formats</dt><dd><%= conf.formatList.join(' · ') %></dd>
+    <% if (conf.blind_review) { %><dt>Review</dt><dd>Anonymous: reviewers do not see speaker names. Keep identifying details out of your abstract.</dd><% } %>
+  </dl>
+  <% if (conf.cfpOpen) { %><a class="btn" href="/proposals/new?conference=<%= conf.slug %>">Submit a proposal</a><% } %>
+</section>
+<%- include('partials/footer') %>

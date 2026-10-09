@@ -1,0 +1,111 @@
+<%- include('partials/header') %>
+<div class="row-between">
+  <p><a href="/review/conferences/<%= conf.id %>">← <%= conf.name %></a></p>
+  <p class="pager"><% if (prevId) { %><a href="/review/proposals/<%= prevId %>">← Previous</a><% } %> <% if (nextId) { %><a href="/review/proposals/<%= nextId %>">Next →</a><% } %></p>
+</div>
+<span class="<%= badgeClass(p.status) %>"><%= statusLabel(p.status) %></span>
+<% if (p.status === 'accepted') { %><span class="badge"><%= p.speaker_confirmation ? 'Speaker ' + p.speaker_confirmation : 'Awaiting speaker confirmation' %></span><% } %>
+<h1><%= p.title %></h1>
+<p class="muted"><%= [p.format, p.track, p.level, p.duration_minutes ? p.duration_minutes + ' min' : ''].filter(Boolean).join(' · ') %> · #<%= p.id %> · v<%= p.version %> · submitted <%= formatDate(p.submitted_at) %></p>
+
+<div class="two-col wide-left">
+<div>
+  <section class="card">
+    <h2>Abstract</h2>
+    <div class="prose"><%= p.abstract %></div>
+    <% if (p.description) { %><h2>Details for the committee</h2><div class="prose"><%= p.description %></div><% } %>
+    <% if (p.notes) { %><h2>Notes for the organisers</h2><div class="prose"><%= p.notes %></div><% } %>
+  </section>
+  <% if (!blind) { %>
+  <section class="card">
+    <h2>Speaker</h2>
+    <p><strong><%= p.speaker_name %></strong><%= p.speaker_job_title ? ', ' + p.speaker_job_title : '' %><%= p.speaker_organization ? ' · ' + p.speaker_organization : '' %>
+      <% if (user.role === 'admin') { %><br><a href="mailto:<%= p.speaker_email %>"><%= p.speaker_email %></a><% } %>
+      <% if (safeUrl(p.speaker_website)) { %><br><a href="<%= safeUrl(p.speaker_website) %>" target="_blank" rel="noopener"><%= p.speaker_website %></a><% } %>
+      <% if (p.speaker_social) { %><br><span class="muted"><%= p.speaker_social %></span><% } %></p>
+    <% if (p.speaker_bio) { %><div class="prose"><%= p.speaker_bio %></div><% } %>
+    <% if (p.co_speakers) { %><h3>Co-speakers</h3><div class="prose"><%= p.co_speakers %></div><% } %>
+  </section>
+  <% } else { %>
+  <section class="card muted">Speaker details are hidden: this conference uses anonymous review.</section>
+  <% } %>
+
+  <section class="card">
+    <h2>Committee reviews <span class="muted small"><%= summary.n %> review<%= summary.n === 1 ? '' : 's' %><%= summary.avg ? ` · average ${summary.avg}` : '' %></span></h2>
+    <% if (!showOthers) { %>
+      <p class="muted">Submit your own review to see what other committee members said.</p>
+    <% } else if (!reviews.length) { %>
+      <p class="muted">No reviews yet.</p>
+    <% } else { reviews.forEach(r => { %>
+      <div class="review">
+        <div class="row-between"><strong><%= r.reviewer_name %></strong><span><span class="score">Score <%= r.score %>/5</span> <span class="<%= badgeClass('rec-' + r.recommendation) %>"><%= r.recommendation %></span></span></div>
+        <% if (r.comments) { %><div class="prose"><%= r.comments %></div><% } %>
+        <span class="small muted"><%= formatDate(r.updated_at) %></span>
+      </div>
+    <% }) } %>
+  </section>
+</div>
+
+<div>
+  <section class="card sticky">
+    <h2>Your review</h2>
+    <% if (isOwn) { %>
+      <p class="muted">This is your own proposal, so you can't review it.</p>
+    <% } else if (p.status === 'withdrawn') { %>
+      <p class="muted">The speaker withdrew this proposal.</p>
+    <% } else { %>
+    <form method="post" action="/review/proposals/<%= p.id %>/review" class="form">
+      <input type="hidden" name="_csrf" value="<%= csrf %>">
+      <fieldset class="scores">
+        <legend>Score</legend>
+        <% [1,2,3,4,5].forEach(n => { %>
+          <label><input type="radio" name="score" value="<%= n %>" <%= myReview && myReview.score === n ? 'checked' : '' %> required> <%= n %></label>
+        <% }) %>
+        <p class="small muted">1 = poor fit · 3 = solid · 5 = must have</p>
+      </fieldset>
+      <label>Recommendation
+        <select name="recommendation" required>
+          <option value="">Choose…</option>
+          <% RECOMMENDATIONS.forEach(r => { %><option value="<%= r %>" <%= myReview && myReview.recommendation === r ? 'selected' : '' %>><%= r[0].toUpperCase() + r.slice(1) %></option><% }) %>
+        </select></label>
+      <label>Comments <span class="opt">visible to the committee only</span>
+        <textarea name="comments" rows="5"><%= myReview ? myReview.comments : '' %></textarea></label>
+      <div class="actions">
+        <button class="btn"><%= myReview ? 'Update review' : 'Save review' %></button>
+        <% if (nextId) { %><button class="btn btn-ghost" name="next" value="<%= nextId %>">Save &amp; next →</button><% } %>
+      </div>
+    </form>
+    <% } %>
+  </section>
+
+  <% if (user.role === 'admin') { %>
+  <section class="card">
+    <h2>Decision</h2>
+    <% if (p.status === 'withdrawn') { %>
+      <p class="muted">Withdrawn by the speaker.</p>
+    <% } else { %>
+    <form method="post" action="/review/proposals/<%= p.id %>/decision" class="form">
+      <input type="hidden" name="_csrf" value="<%= csrf %>">
+      <label>Status
+        <select name="status"><% DECISIONS.forEach(s => { %><option value="<%= s %>" <%= p.status === s ? 'selected' : '' %>><%= statusLabel(s) %></option><% }) %></select></label>
+      <label>Message to speaker <span class="opt">shown once decisions are published; also in exports</span>
+        <textarea name="feedback_to_speaker" rows="4"><%= p.feedback_to_speaker %></textarea></label>
+      <label>Internal notes <span class="opt">organisers only</span>
+        <textarea name="internal_notes" rows="3"><%= p.internal_notes %></textarea></label>
+      <button class="btn">Save decision</button>
+    </form>
+    <p class="small muted">Speakers <%= conf.decisions_published ? 'can' : 'cannot yet' %> see decisions for this conference.</p>
+    <% } %>
+  </section>
+  <% if (history.length) { %>
+  <section class="card">
+    <h3>History</h3>
+    <ul class="timeline">
+      <% history.forEach(h => { %><li><span class="small muted"><%= formatDate(h.created_at) %></span> <%= h.action %> <% if (!blind) { %>by <%= h.user_name || 'unknown' %><% } %><% if (h.detail) { %> <span class="small muted">(<%= h.detail %>)</span><% } %></li><% }) %>
+    </ul>
+  </section>
+  <% } %>
+  <% } %>
+</div>
+</div>
+<%- include('partials/footer') %>

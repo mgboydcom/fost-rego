@@ -1,0 +1,16 @@
+<%- include('partials/header') %>
+<h1>Which conference are you submitting to?</h1>
+<% if (!openConfs.length) { %>
+  <div class="card empty">No calls for proposals are open right now. <a href="/">See all conferences</a>.</div>
+<% } %>
+<div class="grid">
+<% openConfs.forEach(c => { %>
+  <a class="card conf-card pick" href="/proposals/new?conference=<%= c.slug %>">
+    <h2><%= c.name %></h2>
+    <p class="muted"><%= [dateRange(c.start_date, c.end_date), c.location].filter(Boolean).join(' · ') %></p>
+    <% if (c.cfp_closes) { %><p class="small">CFP closes <%= formatDate(c.cfp_closes) %></p><% } %>
+    <span class="btn">Choose</span>
+  </a>
+<% }) %>
+</div>
+<%- include('partials/footer') %>

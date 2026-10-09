@@ -1,0 +1,80 @@
+<%- include('partials/header') %>
+<p><a href="/admin">← Organiser dashboard</a></p>
+<h1><%= conf ? conf.name : 'New conference' %></h1>
+<% if (errors.length) { %><div class="flash flash-error"><ul><% errors.forEach(e => { %><li><%= e %></li><% }) %></ul></div><% } %>
+<div class="two-col wide-left">
+<section class="card">
+  <h2>Details</h2>
+  <form method="post" action="<%= conf ? `/admin/conferences/${conf.id}` : '/admin/conferences' %>" class="form">
+    <input type="hidden" name="_csrf" value="<%= csrf %>">
+    <label>Name <input name="name" value="<%= values.name || '' %>" required></label>
+    <label>URL slug <span class="opt">used in links, e.g. /cfp/my-conf-2027; generated from the name if blank</span><input name="slug" value="<%= values.slug || '' %>"></label>
+    <label>Description <textarea name="description" rows="5"><%= values.description || '' %></textarea></label>
+    <div class="field-row">
+      <label>Location <input name="location" value="<%= values.location || '' %>"></label>
+      <label>Website <input name="website" value="<%= values.website || '' %>" placeholder="https://"></label>
+    </div>
+    <div class="field-row">
+      <label>Starts <input type="date" name="start_date" value="<%= values.start_date || '' %>"></label>
+      <label>Ends <input type="date" name="end_date" value="<%= values.end_date || '' %>"></label>
+    </div>
+    <div class="field-row">
+      <label>CFP opens <span class="opt">blank = now</span><input type="date" name="cfp_opens" value="<%= values.cfp_opens || '' %>"></label>
+      <label>CFP closes <span class="opt">end of day; blank = never</span><input type="date" name="cfp_closes" value="<%= values.cfp_closes || '' %>"></label>
+    </div>
+    <div class="field-row">
+      <label>Tracks <span class="opt">one per line; leave blank for none</span><textarea name="tracks" rows="5"><%= values.tracks || '' %></textarea></label>
+      <label>Session formats <span class="opt">one per line; blank = defaults</span><textarea name="formats" rows="5" placeholder="Talk (30 min)&#10;Lightning talk (10 min)&#10;Workshop (90 min)&#10;Panel (45 min)"><%= values.formats || '' %></textarea></label>
+    </div>
+    <label class="check"><input type="checkbox" name="blind_review" value="1" <%= values.blind_review ? 'checked' : '' %>> Anonymous review (hide speaker identity from reviewers)</label>
+    <button class="btn"><%= conf ? 'Save changes' : 'Create conference' %></button>
+  </form>
+</section>
+
+<% if (conf) { %>
+<div>
+  <section class="card" id="publish">
+    <h2>Decisions</h2>
+    <p>Decisions are currently <strong><%= conf.decisions_published ? 'visible to speakers' : 'hidden from speakers' %></strong>.
+      <%= conf.decisions_published ? 'Accepted speakers can confirm or decline their slot.' : 'Speakers see "Under review" until you publish.' %></p>
+    <form method="post" action="/admin/conferences/<%= conf.id %>/flags">
+      <input type="hidden" name="_csrf" value="<%= csrf %>">
+      <input type="hidden" name="flag" value="decisions_published">
+      <input type="hidden" name="value" value="<%= conf.decisions_published ? 0 : 1 %>">
+      <button class="btn <%= conf.decisions_published ? 'btn-ghost' : '' %>" <% if (!conf.decisions_published) { %>onclick="return confirm('Show all current decisions to speakers?')"<% } %>><%= conf.decisions_published ? 'Hide decisions' : 'Publish decisions to speakers' %></button>
+    </form>
+  </section>
+
+  <section class="card" id="committee">
+    <h2>Program committee</h2>
+    <% if (!reviewers.length) { %><p class="muted">No reviewers yet. Admins can always review.</p><% } %>
+    <ul class="plain">
+      <% reviewers.forEach(r => { %>
+      <li class="row-between">
+        <span><strong><%= r.name %></strong> <span class="small muted"><%= r.email %> · <%= r.reviews_done %> reviews</span></span>
+        <form method="post" action="/admin/conferences/<%= conf.id %>/reviewers/<%= r.id %>/remove" class="inline"><input type="hidden" name="_csrf" value="<%= csrf %>"><button class="linklike danger">Remove</button></form>
+      </li>
+      <% }) %>
+    </ul>
+    <form method="post" action="/admin/conferences/<%= conf.id %>/reviewers" class="form inline-form">
+      <input type="hidden" name="_csrf" value="<%= csrf %>">
+      <input type="email" name="email" placeholder="reviewer@example.com" required aria-label="Reviewer email">
+      <button class="btn btn-small">Add reviewer</button>
+    </form>
+    <p class="small muted">The person needs an account first. Adding them gives them the reviewer role.</p>
+  </section>
+
+  <section class="card">
+    <h2>Share</h2>
+    <p class="small">Public CFP page: <a href="/cfp/<%= conf.slug %>">/cfp/<%= conf.slug %></a></p>
+    <form method="post" action="/admin/conferences/<%= conf.id %>/flags">
+      <input type="hidden" name="_csrf" value="<%= csrf %>">
+      <input type="hidden" name="flag" value="archived">
+      <input type="hidden" name="value" value="<%= conf.archived ? 0 : 1 %>">
+      <button class="linklike"><%= conf.archived ? 'Restore conference' : 'Archive conference (hide from public list)' %></button>
+    </form>
+  </section>
+</div>
+<% } %>
+</div>
+<%- include('partials/footer') %>

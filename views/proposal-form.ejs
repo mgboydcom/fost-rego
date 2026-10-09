@@ -1,0 +1,50 @@
+<%- include('partials/header') %>
+<h1><%= proposal ? 'Edit proposal' : 'Submit a proposal' %></h1>
+<p class="muted">Conference: <strong><%= conf.name %></strong>
+  <% if (!proposal && openConfs.length > 1) { %> · <a href="/proposals/new">choose a different conference</a><% } %>
+  <% if (conf.cfp_closes) { %> · CFP closes <%= formatDate(conf.cfp_closes) %><% } %></p>
+<% if (conf.blind_review) { %><div class="flash flash-info">This conference uses anonymous review. Please leave your name and employer out of the title, abstract and description.</div><% } %>
+<% if (errors.length) { %><div class="flash flash-error"><ul><% errors.forEach(e => { %><li><%= e %></li><% }) %></ul></div><% } %>
+<section class="card">
+<form method="post" action="<%= proposal ? `/proposals/${proposal.id}/edit` : '/proposals' %>" class="form">
+  <input type="hidden" name="_csrf" value="<%= csrf %>">
+  <input type="hidden" name="conference_id" value="<%= conf.id %>">
+  <label>Title <input name="title" value="<%= values.title || '' %>" maxlength="200" required></label>
+  <label>Abstract <span class="opt">public description shown in the program, up to 3000 characters</span>
+    <textarea name="abstract" rows="7" maxlength="3000" required><%= values.abstract || '' %></textarea></label>
+  <label>Details for the committee <span class="opt">outline, key takeaways, why you</span>
+    <textarea name="description" rows="7"><%= values.description || '' %></textarea></label>
+  <div class="field-row">
+    <label>Session format
+      <select name="format" required>
+        <option value="">Choose…</option>
+        <% conf.formatList.forEach(f => { %><option <%= values.format === f ? 'selected' : '' %>><%= f %></option><% }) %>
+      </select></label>
+    <% if (conf.trackList.length) { %>
+    <label>Track
+      <select name="track" required>
+        <option value="">Choose…</option>
+        <% conf.trackList.forEach(t => { %><option <%= values.track === t ? 'selected' : '' %>><%= t %></option><% }) %>
+      </select></label>
+    <% } %>
+  </div>
+  <div class="field-row">
+    <label>Audience level
+      <select name="level">
+        <option value="">Not specified</option>
+        <% LEVELS.forEach(l => { %><option <%= values.level === l ? 'selected' : '' %>><%= l %></option><% }) %>
+      </select></label>
+    <label>Preferred length (minutes) <span class="opt">optional</span>
+      <input type="number" name="duration_minutes" min="5" max="480" value="<%= values.duration_minutes ?? '' %>"></label>
+  </div>
+  <label>Co-speakers <span class="opt">name and email, one per line</span>
+    <textarea name="co_speakers" rows="2"><%= values.co_speakers || '' %></textarea></label>
+  <label>Notes for the organisers <span class="opt">availability, accessibility needs, anything else</span>
+    <textarea name="notes" rows="3"><%= values.notes || '' %></textarea></label>
+  <div class="actions">
+    <button class="btn"><%= proposal ? 'Save changes' : 'Submit proposal' %></button>
+    <a class="btn btn-ghost" href="<%= proposal ? `/proposals/${proposal.id}` : '/proposals' %>">Cancel</a>
+  </div>
+</form>
+</section>
+<%- include('partials/footer') %>

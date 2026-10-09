@@ -1,0 +1,23 @@
+{
+  "name": "fost-rego",
+  "version": "1.0.0",
+  "description": "Conference call-for-proposals app: speakers submit and edit proposals, a program committee reviews and decides, and everything exports to spreadsheets.",
+  "main": "src/server.js",
+  "type": "commonjs",
+  "scripts": {
+    "start": "node --disable-warning=ExperimentalWarning src/server.js",
+    "dev": "node --disable-warning=ExperimentalWarning --watch src/server.js",
+    "seed": "node --disable-warning=ExperimentalWarning scripts/seed.js",
+    "test": "node --disable-warning=ExperimentalWarning --test test/*.test.js"
+  },
+  "engines": {
+    "node": ">=22.13"
+  },
+  "license": "MIT",
+  "dependencies": {
+    "cookie-session": "^2.1.1",
+    "ejs": "^3.1.10",
+    "exceljs": "^4.4.0",
+    "express": "^5.1.0"
+  }
+}

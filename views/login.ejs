@@ -1,0 +1,13 @@
+<%- include('partials/header') %>
+<section class="card narrow">
+  <h1>Sign in</h1>
+  <% if (error) { %><div class="flash flash-error"><%= error %></div><% } %>
+  <form method="post" action="/login" class="form">
+    <input type="hidden" name="_csrf" value="<%= csrf %>">
+    <label>Email <input type="email" name="email" value="<%= email %>" required autofocus autocomplete="email"></label>
+    <label>Password <input type="password" name="password" required autocomplete="current-password"></label>
+    <button class="btn">Sign in</button>
+  </form>
+  <p class="muted">New here? <a href="/register">Create an account</a> to submit a proposal.</p>
+</section>
+<%- include('partials/footer') %>
