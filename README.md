@@ -1,4 +1,4 @@
-# CFP Hub: conference call for proposals
+# FOST Call for Speakers
 
 A small web app for running calls for proposals (CFPs) across one or more conferences.
 
@@ -94,6 +94,6 @@ src/model.js         Conference and proposal rules (CFP window, edit permissions
 src/export.js        Dataset queries and CSV/XLSX writers
 src/routes/          public, speaker, review (committee), admin, export
 views/               EJS templates
-public/style.css     Styles (light and dark)
+public/style.css     Styles from the FOST style guide (light and dark)
 scripts/seed.js      Demo data
 ```

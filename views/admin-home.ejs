@@ -7,6 +7,14 @@
     <a class="btn" href="/admin/conferences/new">New conference</a>
   </div>
 </div>
+<% if (conferences.length) {
+  const sum = (k) => conferences.reduce((n, c) => n + (c.stats[k] || 0), 0); %>
+<div class="stats">
+  <% [['total', 'Proposals'], ['pending', 'Pending decision'], ['accepted', 'Accepted'], ['confirmed', 'Speakers confirmed']].forEach(([k, label]) => { %>
+  <div class="stat-card"><span class="stat-num"><%= sum(k) %></span><span class="stat-label"><%= label %></span></div>
+  <% }) %>
+</div>
+<% } %>
 <% if (!conferences.length) { %>
   <div class="card empty"><p>No conferences yet.</p><a class="btn" href="/admin/conferences/new">Create your first conference</a></div>
 <% } else { %>
