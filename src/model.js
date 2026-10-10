@@ -58,10 +58,36 @@ function publicStatus(proposal, conf) {
   return proposal.status;
 }
 
-function canSpeakerEdit(proposal, conf) {
-  if (proposal.status === 'withdrawn' || proposal.status === 'rejected') return false;
-  if (proposal.status === 'accepted' && conf.decisions_published) return proposal.speaker_confirmation !== 'declined';
-  return conf.cfpOpen;
+const DAY_MS = 86400000;
+const todayUtc = () => new Date().toISOString().slice(0, 10);
+
+// Speakers may keep editing after the call closes, right up to the conference:
+// the last editing day is the day before start_date. No start date = no deadline.
+function editDeadline(conf) {
+  if (!conf.start_date) return '';
+  return new Date(Date.parse(`${conf.start_date}T00:00:00Z`) - DAY_MS).toISOString().slice(0, 10);
+}
+
+function canSpeakerEdit(proposal, conf, today = todayUtc()) {
+  if (proposal.status === 'withdrawn' || conf.archived) return false;
+  // Unpublished decisions must not change what the speaker can do, or the edit link would leak them.
+  if (conf.decisions_published) {
+    if (proposal.status === 'rejected') return false;
+    if (proposal.speaker_confirmation === 'declined') return false;
+  }
+  const deadline = editDeadline(conf);
+  return !deadline || today <= deadline;
+}
+
+// Everything the "time left to edit" label needs.
+function editWindow(proposal, conf, today = todayUtc()) {
+  const deadline = editDeadline(conf);
+  const editable = canSpeakerEdit(proposal, conf, today);
+  if (!editable) return { editable, deadline, daysLeft: null, label: 'Editing closed', tone: 'closed' };
+  if (!deadline) return { editable, deadline, daysLeft: null, label: 'No edit deadline', tone: 'open' };
+  const daysLeft = Math.round((Date.parse(`${deadline}T00:00:00Z`) - Date.parse(`${today}T00:00:00Z`)) / DAY_MS);
+  const label = daysLeft === 0 ? 'Last day to edit' : `${daysLeft} day${daysLeft === 1 ? '' : 's'} left to edit`;
+  return { editable, deadline, daysLeft, label, tone: daysLeft <= 7 ? 'soon' : 'open' };
 }
 
 function isReviewerFor(user, conferenceId) {
@@ -85,5 +111,5 @@ function slugify(text) {
 module.exports = {
   DEFAULT_FORMATS, LEVELS, STATUSES, DECISIONS, RECOMMENDATIONS,
   lines, cfpState, decorateConference, getConference, listConferences, getProposal,
-  publicStatus, canSpeakerEdit, isReviewerFor, logHistory, slugify,
+  publicStatus, canSpeakerEdit, editDeadline, editWindow, isReviewerFor, logHistory, slugify,
 };

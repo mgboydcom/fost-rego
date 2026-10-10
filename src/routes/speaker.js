@@ -1,8 +1,9 @@
 const express = require('express');
 const { db, now, transaction } = require('../db');
 const { requireLogin, flash, hashPassword, verifyPassword } = require('../auth');
+const { formatDate } = require('../view-helpers');
 const {
-  LEVELS, listConferences, getConference, getProposal, publicStatus, canSpeakerEdit, logHistory,
+  LEVELS, listConferences, getConference, getProposal, publicStatus, canSpeakerEdit, editDeadline, editWindow, logHistory,
 } = require('../model');
 
 const router = express.Router();
@@ -80,7 +81,8 @@ router.get('/proposals', requireLogin, (req, res) => {
     WHERE p.speaker_id = ? ORDER BY p.submitted_at DESC`).all(req.user.id);
   const proposals = rows.map((p) => {
     const conf = getConference(p.conference_id);
-    return { ...p, shownStatus: publicStatus(p, conf), editable: canSpeakerEdit(p, conf) };
+    const edit = editWindow(p, conf);
+    return { ...p, shownStatus: publicStatus(p, conf), editable: edit.editable, edit };
   });
   const openConfs = listConferences().filter((c) => c.cfpOpen);
   res.render('proposals', { title: 'My proposals', proposals, openConfs });
@@ -117,7 +119,8 @@ router.post('/proposals', requireLogin, (req, res) => {
     logHistory(Number(lastInsertRowid), req.user.id, 'submitted');
     return Number(lastInsertRowid);
   });
-  flash(req, 'success', 'Thanks! Your proposal has been submitted. You can keep editing it until the CFP closes.');
+  const deadline = editDeadline(conf);
+  flash(req, 'success', `Thanks! Your proposal has been submitted. You can keep editing it${deadline ? ` until ${formatDate(deadline)}, the day before the conference` : ''}.`);
   res.redirect(`/proposals/${id}`);
 });
 
@@ -139,6 +142,7 @@ router.get('/proposals/:id', requireLogin, (req, res) => {
     conf,
     shownStatus: publicStatus(found.proposal, conf),
     editable: canSpeakerEdit(found.proposal, conf),
+    edit: editWindow(found.proposal, conf),
     history,
   });
 });
@@ -152,6 +156,7 @@ router.get('/proposals/:id/edit', requireLogin, (req, res) => {
   }
   res.render('proposal-form', {
     title: 'Edit proposal', conf: found.conf, openConfs: [], values: found.proposal, errors: [], proposal: found.proposal, LEVELS,
+    edit: editWindow(found.proposal, found.conf),
   });
 });
 
@@ -166,7 +171,7 @@ router.post('/proposals/:id/edit', requireLogin, (req, res) => {
   const { values, errors } = readProposal(req.body, conf);
   if (errors.length) {
     return res.status(400).render('proposal-form', {
-      title: 'Edit proposal', conf, openConfs: [], values, errors, proposal, LEVELS,
+      title: 'Edit proposal', conf, openConfs: [], values, errors, proposal, LEVELS, edit: editWindow(proposal, conf),
     });
   }
   const changed = PROPOSAL_FIELDS.filter((f) => String(values[f] ?? '') !== String(proposal[f] ?? ''));

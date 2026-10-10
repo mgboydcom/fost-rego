@@ -45,7 +45,7 @@
     <dt>Submitted</dt><dd><%= formatDate(p.submitted_at) %></dd>
     <dt>Last updated</dt><dd><%= formatDate(p.updated_at) %></dd>
     <% if (p.duration_minutes) { %><dt>Preferred length</dt><dd><%= p.duration_minutes %> min</dd><% } %>
-    <% if (conf.cfp_closes) { %><dt>CFP closes</dt><dd><%= formatDate(conf.cfp_closes) %></dd><% } %>
+    <dt>Editing</dt><dd><%- include('partials/edit-window', { edit }) %></dd>
   </dl>
   <% if (history.length) { %>
   <h3>Activity</h3>

@@ -11,7 +11,7 @@
 <% } else { %>
 <div class="table-wrap card flush">
 <table>
-  <thead><tr><th>Title</th><th>Conference</th><th>Format</th><th>Status</th><th>Last updated</th><th></th></tr></thead>
+  <thead><tr><th>Title</th><th>Conference</th><th>Format</th><th>Status</th><th>Time left to edit</th><th>Last updated</th><th></th></tr></thead>
   <tbody>
   <% proposals.forEach(p => { %>
     <tr>
@@ -20,6 +20,7 @@
       <td><%= p.format %></td>
       <td><span class="<%= badgeClass(p.shownStatus) %>"><%= statusLabel(p.shownStatus) %></span>
         <% if (p.shownStatus === 'accepted') { %><br><span class="small muted"><%= p.speaker_confirmation ? 'You ' + p.speaker_confirmation : 'Please confirm' %></span><% } %></td>
+      <td><%- include('partials/edit-window', { edit: p.edit }) %></td>
       <td class="nowrap"><%= formatDate(p.updated_at) %></td>
       <td class="nowrap"><% if (p.editable) { %><a href="/proposals/<%= p.id %>/edit">Edit</a><% } %></td>
     </tr>

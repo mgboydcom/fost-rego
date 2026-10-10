@@ -167,7 +167,7 @@ test('full CFP lifecycle', async () => {
   assert.equal(r.status, 302);
 });
 
-test('closed CFP rejects new submissions and edits', async () => {
+test('closed CFP rejects new submissions', async () => {
   const admin = browser();
   await admin.post('/login', { email: 'admin@example.com', password: 'password123' });
   await admin.post('/admin/conferences', { name: 'Old Conf', cfp_opens: '2020-01-01', cfp_closes: '2020-02-01' });
@@ -178,4 +178,49 @@ test('closed CFP rejects new submissions and edits', async () => {
   assert.equal(r.status, 302);
   assert.equal(r.location, '/proposals/new');
   assert.equal(db.prepare('SELECT COUNT(*) AS n FROM proposals WHERE conference_id = ?').get(conf.id).n, 0);
+});
+
+test('edit window runs to the day before the conference, not the CFP close', () => {
+  const { editWindow, canSpeakerEdit, editDeadline } = require('../src/model');
+  const conf = { start_date: '2027-03-10', cfp_closes: '2027-01-01', decisions_published: 0, archived: 0 };
+  const p = { status: 'submitted', speaker_confirmation: '' };
+  assert.equal(editDeadline(conf), '2027-03-09');
+  assert.deepEqual(editWindow(p, conf, '2027-02-01'), { editable: true, deadline: '2027-03-09', daysLeft: 36, label: '36 days left to edit', tone: 'open' });
+  assert.equal(editWindow(p, conf, '2027-03-08').label, '1 day left to edit');
+  assert.equal(editWindow(p, conf, '2027-03-08').tone, 'soon');
+  assert.equal(editWindow(p, conf, '2027-03-09').label, 'Last day to edit');
+  assert.equal(editWindow(p, conf, '2027-03-10').label, 'Editing closed');
+  assert.equal(editWindow(p, { ...conf, start_date: '' }, '2030-01-01').label, 'No edit deadline');
+  // A hidden rejection must not lock the speaker out (that would leak the decision); a published one does.
+  assert.equal(canSpeakerEdit({ status: 'rejected' }, conf, '2027-02-01'), true);
+  assert.equal(canSpeakerEdit({ status: 'rejected' }, { ...conf, decisions_published: 1 }, '2027-02-01'), false);
+  assert.equal(canSpeakerEdit({ status: 'accepted', speaker_confirmation: 'declined' }, { ...conf, decisions_published: 1 }, '2027-02-01'), false);
+  assert.equal(canSpeakerEdit({ status: 'withdrawn' }, conf, '2027-02-01'), false);
+});
+
+test('speakers can still edit after the CFP closes and see the time left', async () => {
+  const admin = browser();
+  await admin.post('/login', { email: 'admin@example.com', password: 'password123' });
+  const future = new Date(Date.now() + 30 * 86400000).toISOString().slice(0, 10);
+  await admin.post('/admin/conferences', { name: 'Closed Call Conf', cfp_opens: '2020-01-01', start_date: future });
+  const conf = db.prepare("SELECT * FROM conferences WHERE name = 'Closed Call Conf'").get();
+  const ada = db.prepare("SELECT id FROM users WHERE email = 'ada@example.com'").get();
+  const { lastInsertRowid: pid } = db.prepare(`INSERT INTO proposals (conference_id, speaker_id, title, abstract, format)
+    VALUES (?, ?, 'Before close', 'x', 'Talk (30 min)')`).run(conf.id, ada.id);
+  db.prepare("UPDATE conferences SET cfp_closes = '2020-02-01' WHERE id = ?").run(conf.id);
+
+  const s = browser();
+  await s.post('/login', { email: 'ada@example.com', password: 'password123' });
+  let r = await s.get('/proposals');
+  assert.match(r.text, /29 days left to edit/);
+  r = await s.post(`/proposals/${pid}/edit`, { title: 'After close', abstract: 'x', format: 'Talk (30 min)' });
+  assert.equal(r.status, 302);
+  assert.equal(db.prepare('SELECT title FROM proposals WHERE id = ?').get(pid).title, 'After close');
+
+  // Once the conference starts, editing stops.
+  db.prepare("UPDATE conferences SET start_date = '2020-03-01' WHERE id = ?").run(conf.id);
+  r = await s.post(`/proposals/${pid}/edit`, { title: 'Too late', abstract: 'x', format: 'Talk (30 min)' });
+  assert.equal(db.prepare('SELECT title FROM proposals WHERE id = ?').get(pid).title, 'After close');
+  r = await s.get('/proposals');
+  assert.match(r.text, /Editing closed/);
 });

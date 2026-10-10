@@ -2,7 +2,7 @@
 <h1><%= proposal ? 'Edit proposal' : 'Submit a proposal' %></h1>
 <p class="muted">Conference: <strong><%= conf.name %></strong>
   <% if (!proposal && openConfs.length > 1) { %> · <a href="/proposals/new">choose a different conference</a><% } %>
-  <% if (conf.cfp_closes) { %> · CFP closes <%= formatDate(conf.cfp_closes) %><% } %></p>
+  <% if (proposal && locals.edit) { %> · <span class="edit-window edit-<%= edit.tone %>"><%= edit.label %></span><% if (edit.deadline) { %> (until <%= formatDate(edit.deadline) %>)<% } %><% } else if (conf.cfp_closes) { %> · CFP closes <%= formatDate(conf.cfp_closes) %><% } %></p>
 <% if (conf.blind_review) { %><div class="flash flash-info">This conference uses anonymous review. Please leave your name and employer out of the title, abstract and description.</div><% } %>
 <% if (errors.length) { %><div class="flash flash-error"><ul><% errors.forEach(e => { %><li><%= e %></li><% }) %></ul></div><% } %>
 <section class="card">

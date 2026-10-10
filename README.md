@@ -2,7 +2,7 @@
 
 A small web app for running calls for proposals (CFPs) across one or more conferences.
 
-- **Speakers** create an account, pick which conference to submit to, and edit or withdraw their proposals while the CFP is open. Once accepted, they confirm or decline their slot and can keep refining the title and abstract for the program.
+- **Speakers** create an account, pick which conference to submit to, submit while the call is open, and keep editing their proposals right up to the day before the conference starts. Each proposal shows how much time is left to edit. Once accepted, they confirm or decline their slot.
 - **The program review committee** scores each proposal from 1 to 5, recommends accept, maybe or reject, and leaves comments. Reviewers see colleagues' reviews only after submitting their own. Anonymous review can be switched on per conference.
 - **Organisers (admins)** create conferences (dates, CFP window, tracks, session formats), choose the committee, make decisions one at a time or in bulk, write a message to each speaker, and choose when decisions become visible to speakers.
 - **Everything exports to spreadsheets** (`.xlsx`, `.csv` and `.json`) with stable column names, so the data can feed mail merges, Google Sheets, Zapier, Make, Power Automate and similar tools.
@@ -46,7 +46,7 @@ submitted ──► accepted ──► speaker confirmed / declined
      └──────► withdrawn (by the speaker, at any time)
 ```
 
-- Speakers can edit while the CFP is open. Each edit bumps `version` and is logged in the proposal history. Accepted speakers can keep editing after decisions are published (for example, to polish the program copy).
+- New submissions are only accepted while the call is open, but speakers can keep editing existing proposals after it closes, until the day before the conference's start date (no start date means no deadline). Speakers see the days left on their proposals list and proposal pages. Editing stops for withdrawn proposals, for published rejections and for speakers who declined their slot. Each edit bumps `version` and is logged in the proposal history.
 - Until an organiser clicks **Publish decisions to speakers** for a conference, speakers see "Under review". This lets the committee finalise everything before anyone is told.
 - Decision dates (`decided_at`), confirmations (`confirmed_at`) and the last change (`updated_at`) are recorded and exported, so follow-up workflows can react to them.
 
