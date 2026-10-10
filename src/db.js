@@ -2,6 +2,7 @@ const fs = require('node:fs');
 const path = require('node:path');
 const crypto = require('node:crypto');
 const { DatabaseSync } = require('node:sqlite');
+const { guessCountryCode } = require('./countries');
 
 const SCHEMA = `
 CREATE TABLE IF NOT EXISTS users (
@@ -16,10 +17,9 @@ CREATE TABLE IF NOT EXISTS users (
   organization  TEXT NOT NULL DEFAULT '',
   job_title     TEXT NOT NULL DEFAULT '',
   bio           TEXT NOT NULL DEFAULT '',
-  website       TEXT NOT NULL DEFAULT '',
   linkedin_profile_url TEXT NOT NULL DEFAULT '',
   phone         TEXT NOT NULL DEFAULT '',
-  location      TEXT NOT NULL DEFAULT '',
+  country       TEXT NOT NULL DEFAULT '', -- ISO 3166-1 alpha-2 code (see countries.js), '' = not given
   photo_url     TEXT NOT NULL DEFAULT '',
   created_at    TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%SZ','now')),
   updated_at    TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%SZ','now'))
@@ -57,7 +57,6 @@ CREATE TABLE IF NOT EXISTS proposals (
   speaker_id            INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
   title                 TEXT NOT NULL,
   abstract              TEXT NOT NULL,
-  description           TEXT NOT NULL DEFAULT '',
   format                TEXT NOT NULL DEFAULT '',
   track                 TEXT NOT NULL DEFAULT '',
   level                 TEXT NOT NULL DEFAULT '',
@@ -106,12 +105,27 @@ CREATE TABLE IF NOT EXISTS settings (
 );
 `;
 
-// Upgrades older databases: users.social became linkedin_profile_url, and users.name was split
-// into first_name and last_name.
+// Upgrades older databases. Each step runs once. Columns that were removed from the model
+// (users.website, users.location, proposals.description) are left in place so no data is lost.
 function migrate(db) {
   const cols = db.prepare('PRAGMA table_xinfo(users)').all().map((c) => c.name);
   if (cols.includes('social')) db.exec('ALTER TABLE users RENAME COLUMN social TO linkedin_profile_url');
-  if (cols.includes('first_name')) return;
+  if (!cols.includes('country')) {
+    db.exec("ALTER TABLE users ADD COLUMN country TEXT NOT NULL DEFAULT ''");
+    // Fill country from the old free-text location ("Paris, France") where it names one clearly.
+    if (cols.includes('location')) {
+      const set = db.prepare('UPDATE users SET country = ? WHERE id = ?');
+      for (const u of db.prepare("SELECT id, location FROM users WHERE location != ''").all()) {
+        const code = guessCountryCode(u.location);
+        if (code) set.run(code, u.id);
+      }
+    }
+  }
+  if (!cols.includes('first_name')) splitNames(db);
+}
+
+// users.name was split into first_name and last_name; name became a generated full name.
+function splitNames(db) {
   db.exec('BEGIN');
   try {
     db.exec("ALTER TABLE users ADD COLUMN first_name TEXT NOT NULL DEFAULT ''");

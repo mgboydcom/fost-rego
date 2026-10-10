@@ -3,8 +3,12 @@
 // IMPORTDATA, Airtable syncs, etc.
 const ExcelJS = require('exceljs');
 const { db } = require('./db');
+const { countryName } = require('./countries');
 
 const BASE_URL = () => (process.env.BASE_URL || `http://localhost:${process.env.PORT || 3000}`).replace(/\/$/, '');
+
+// Where to get a speaker's headshot: their own photo URL if given, otherwise their LinkedIn profile photo.
+const headshotSource = (photoUrl, linkedinUrl) => (photoUrl ? 'photo_url' : linkedinUrl ? 'linkedin' : 'missing');
 
 function where(filters, alias = 'p') {
   const clauses = [];
@@ -19,13 +23,13 @@ function submissions(filters = {}) {
   const w = where(filters);
   const rows = db.prepare(`
     SELECT p.id AS proposal_id, c.name AS conference, c.slug AS conference_slug,
-           p.title, p.format, p.track, p.level, p.duration_minutes, p.abstract, p.description,
+           p.title, p.format, p.track, p.level, p.duration_minutes, p.abstract,
            p.co_speakers, p.notes AS notes_to_committee,
            p.status, c.decisions_published, p.speaker_confirmation, p.feedback_to_speaker, p.internal_notes,
            u.id AS speaker_id, u.name AS speaker_name, u.first_name AS speaker_first_name, u.last_name AS speaker_last_name,
            u.email AS speaker_email, u.organization AS speaker_organization,
-           u.job_title AS speaker_job_title, u.phone AS speaker_phone, u.location AS speaker_location,
-           u.website AS speaker_website, u.linkedin_profile_url AS speaker_linkedin_profile_url, u.photo_url AS speaker_photo_url, u.bio AS speaker_bio,
+           u.job_title AS speaker_job_title, u.phone AS speaker_phone, u.country AS speaker_country, u.country AS speaker_country_code,
+           u.linkedin_profile_url AS speaker_linkedin_profile_url, u.photo_url AS speaker_photo_url, u.bio AS speaker_bio,
            (SELECT COUNT(*) FROM reviews r WHERE r.proposal_id = p.id) AS review_count,
            (SELECT ROUND(AVG(score), 2) FROM reviews r WHERE r.proposal_id = p.id) AS average_score,
            (SELECT COUNT(*) FROM reviews r WHERE r.proposal_id = p.id AND r.recommendation = 'accept') AS votes_accept,
@@ -39,6 +43,8 @@ function submissions(filters = {}) {
     ORDER BY c.id, p.id`).all(...w.params);
   return rows.map((r) => ({
     ...r,
+    speaker_country: countryName(r.speaker_country),
+    speaker_headshot_source: headshotSource(r.speaker_photo_url, r.speaker_linkedin_profile_url),
     decisions_published: r.decisions_published ? 'yes' : 'no',
     average_score: r.average_score ?? '',
     duration_minutes: r.duration_minutes ?? '',
@@ -63,9 +69,10 @@ function program(filters = {}) {
     speaker_email: r.speaker_email,
     speaker_organization: r.speaker_organization,
     speaker_job_title: r.speaker_job_title,
+    speaker_country: r.speaker_country,
     speaker_bio: r.speaker_bio,
     speaker_photo_url: r.speaker_photo_url,
-    speaker_website: r.speaker_website,
+    speaker_headshot_source: r.speaker_headshot_source,
     speaker_linkedin_profile_url: r.speaker_linkedin_profile_url,
     co_speakers: r.co_speakers,
     decisions_published: r.decisions_published,
@@ -79,8 +86,8 @@ function program(filters = {}) {
 function speakers(filters = {}) {
   const w = where(filters);
   return db.prepare(`
-    SELECT u.id AS speaker_id, u.name, u.first_name, u.last_name, u.email, u.organization, u.job_title, u.phone, u.location,
-           u.website, u.linkedin_profile_url, u.photo_url, u.bio,
+    SELECT u.id AS speaker_id, u.name, u.first_name, u.last_name, u.email, u.organization, u.job_title, u.phone, u.country, u.country AS country_code,
+           u.linkedin_profile_url, u.photo_url, u.bio,
            COUNT(p.id) AS proposals_total,
            SUM(p.status = 'accepted') AS proposals_accepted,
            SUM(p.status = 'waitlisted') AS proposals_waitlisted,
@@ -95,7 +102,8 @@ function speakers(filters = {}) {
     JOIN conferences c ON c.id = p.conference_id
     ${w.sql}
     GROUP BY u.id
-    ORDER BY u.last_name COLLATE NOCASE, u.first_name COLLATE NOCASE`).all(...w.params);
+    ORDER BY u.last_name COLLATE NOCASE, u.first_name COLLATE NOCASE`).all(...w.params)
+    .map((r) => ({ ...r, country: countryName(r.country), headshot_source: headshotSource(r.photo_url, r.linkedin_profile_url) }));
 }
 
 function reviews(filters = {}) {

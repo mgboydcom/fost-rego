@@ -16,15 +16,17 @@
     </div>
     <label>Short bio <span class="opt">third person, ~100 words</span>
       <textarea name="bio" rows="6"><%= values.bio %></textarea></label>
-    <div class="field-row">
-      <label>Website <input name="website" value="<%= values.website %>" placeholder="https://"></label>
-      <label>LinkedIn profile URL <input name="linkedin_profile_url" inputmode="url" autocomplete="url" value="<%= values.linkedin_profile_url %>" placeholder="https://www.linkedin.com/in/your-name"></label>
-    </div>
+    <label>LinkedIn profile URL <input name="linkedin_profile_url" inputmode="url" autocomplete="url" value="<%= values.linkedin_profile_url %>" placeholder="https://www.linkedin.com/in/your-name"></label>
     <div class="field-row">
       <label>Phone <span class="opt">organisers only</span> <input name="phone" value="<%= values.phone %>"></label>
-      <label>Based in <input name="location" value="<%= values.location %>" placeholder="City, country"></label>
+      <label>Country
+        <select name="country" autocomplete="country">
+          <option value="">Not specified</option>
+          <% COUNTRIES.forEach(c => { %><option value="<%= c.code %>" <%= values.country === c.code ? 'selected' : '' %>><%= c.name %></option><% }) %>
+        </select></label>
     </div>
-    <label>Headshot URL <input name="photo_url" value="<%= values.photo_url %>" placeholder="https://…/photo.jpg"></label>
+    <label>Headshot URL <span class="opt">Optional. If you leave this blank, we'll use the photo on your LinkedIn profile.</span>
+      <input name="photo_url" value="<%= values.photo_url %>" placeholder="https://…/photo.jpg"></label>
     <button class="btn">Save profile</button>
   </form>
 </section>

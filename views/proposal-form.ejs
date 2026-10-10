@@ -12,8 +12,6 @@
   <label>Title <input name="title" value="<%= values.title || '' %>" maxlength="200" required></label>
   <label>Abstract <span class="opt">public description shown in the program, up to 3000 characters</span>
     <textarea name="abstract" rows="7" maxlength="3000" required><%= values.abstract || '' %></textarea></label>
-  <label>Details for the committee <span class="opt">outline, key takeaways, why you</span>
-    <textarea name="description" rows="7"><%= values.description || '' %></textarea></label>
   <div class="field-row">
     <label>Session format
       <select name="format" required>

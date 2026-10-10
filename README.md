@@ -57,7 +57,7 @@ Go to **Organise → Spreadsheet exports**. Five datasets are available, one row
 | Dataset | Use it for |
 | --- | --- |
 | `submissions` | Everything about each proposal: talk details, speaker contact details, status, decision visibility, speaker confirmation, message to the speaker, internal notes, review count, average score and vote counts, timestamps, links |
-| `program` | Accepted talks only, with speaker bio, photo and confirmation status: for the website, schedule and speaker comms |
+| `program` | Accepted talks only, with speaker bio, country, headshot (with `speaker_headshot_source`: the speaker's own photo URL, or their LinkedIn photo if they gave none) and confirmation status: for the website, schedule and speaker comms |
 | `speakers` | One row per speaker with counts of proposals by outcome |
 | `reviews` | One row per review |
 | `conferences` | Settings and headline numbers |

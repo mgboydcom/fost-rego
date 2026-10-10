@@ -4,6 +4,7 @@ const cookieSession = require('cookie-session');
 const { ensureSecret } = require('./db');
 const { loadUser, csrfCheck } = require('./auth');
 const helpers = require('./view-helpers');
+const { COUNTRIES } = require('./countries');
 
 function createApp() {
   const app = express();
@@ -22,7 +23,7 @@ function createApp() {
     secure: process.env.NODE_ENV === 'production' && !process.env.ALLOW_INSECURE_COOKIES,
     maxAge: 14 * 24 * 60 * 60 * 1000,
   }));
-  app.use((req, res, next) => { Object.assign(res.locals, helpers, { path: req.path, title: '' }); next(); });
+  app.use((req, res, next) => { Object.assign(res.locals, helpers, { COUNTRIES, path: req.path, title: '' }); next(); });
   app.use(loadUser);
   app.use(csrfCheck);
 

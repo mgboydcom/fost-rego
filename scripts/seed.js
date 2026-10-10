@@ -46,9 +46,9 @@ for (const [c, u] of [[apiConf, r1], [apiConf, r2], [osConf, r1]]) {
 }
 
 const proposal = (c, speaker, title, format, track, abstract) => Number(db.prepare(`
-  INSERT INTO proposals (conference_id, speaker_id, title, abstract, description, format, track, level, submitted_at, updated_at)
-  VALUES (?, ?, ?, ?, ?, ?, ?, 'Intermediate', ?, ?)`)
-  .run(c, speaker, title, abstract, 'Outline:\n1. Problem\n2. Approach\n3. Results', format, track, now(), now()).lastInsertRowid);
+  INSERT INTO proposals (conference_id, speaker_id, title, abstract, format, track, level, submitted_at, updated_at)
+  VALUES (?, ?, ?, ?, ?, ?, 'Intermediate', ?, ?)`)
+  .run(c, speaker, title, abstract, format, track, now(), now()).lastInsertRowid);
 
 const p1 = proposal(apiConf, ada, 'Designing APIs for engines that do not exist yet', 'Talk (30 min)', 'API Design', 'How to design interfaces that outlive their first implementation.');
 const p2 = proposal(apiConf, grace, 'Compilers, contracts and the OpenAPI spec', 'Talk (30 min)', 'Platform Engineering', 'Treat your API description as a compiler input and generate everything else.');

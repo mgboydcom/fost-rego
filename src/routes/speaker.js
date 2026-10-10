@@ -2,14 +2,15 @@ const express = require('express');
 const { db, now, transaction } = require('../db');
 const { requireLogin, flash, hashPassword, verifyPassword } = require('../auth');
 const { formatDate, safeUrl } = require('../view-helpers');
+const { COUNTRIES, isCountryCode } = require('../countries');
 const {
   LEVELS, listConferences, getConference, getProposal, publicStatus, canSpeakerEdit, editDeadline, editWindow, logHistory,
 } = require('../model');
 
 const router = express.Router();
 
-const PROFILE_FIELDS = ['first_name', 'last_name', 'organization', 'job_title', 'bio', 'website', 'linkedin_profile_url', 'phone', 'location', 'photo_url'];
-const PROPOSAL_FIELDS = ['title', 'abstract', 'description', 'format', 'track', 'level', 'duration_minutes', 'co_speakers', 'notes'];
+const PROFILE_FIELDS = ['first_name', 'last_name', 'organization', 'job_title', 'bio', 'linkedin_profile_url', 'phone', 'country', 'photo_url'];
+const PROPOSAL_FIELDS = ['title', 'abstract', 'format', 'track', 'level', 'duration_minutes', 'co_speakers', 'notes'];
 
 // ---------- Profile ----------
 
@@ -36,6 +37,7 @@ router.post('/profile', requireLogin, (req, res) => {
   if (values.linkedin_profile_url) values.linkedin_profile_url = normalizeLinkedIn(values.linkedin_profile_url);
   let error = null;
   if (!values.first_name) error = 'First name is required.';
+  else if (values.country && !isCountryCode(values.country)) error = 'Please choose a country from the list.';
   else if (values.linkedin_profile_url === null) error = 'LinkedIn profile URL must be a linkedin.com address, like https://www.linkedin.com/in/your-name.';
   if (error) {
     return res.status(400).render('profile', { title: 'Your speaker profile', values: { ...req.user, ...values, linkedin_profile_url: String(req.body.linkedin_profile_url || '') }, error });

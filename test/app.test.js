@@ -230,15 +230,17 @@ test('migrates older databases: name split into first/last, social renamed', () 
   const { DatabaseSync } = require('node:sqlite');
   const { migrate } = require('../src/db');
   const old = new DatabaseSync(':memory:');
-  old.exec(`CREATE TABLE users (id INTEGER PRIMARY KEY, email TEXT, password_hash TEXT, name TEXT NOT NULL, social TEXT NOT NULL DEFAULT '');
-            INSERT INTO users (email, password_hash, name, social) VALUES
-              ('a@x', 'h', 'Ada King Lovelace', '@ada'), ('c@x', 'h', 'Cher', ''), ('g@x', 'h', '  Grace Hopper ', '')`);
+  old.exec(`CREATE TABLE users (id INTEGER PRIMARY KEY, email TEXT, password_hash TEXT, name TEXT NOT NULL,
+              social TEXT NOT NULL DEFAULT '', location TEXT NOT NULL DEFAULT '');
+            INSERT INTO users (email, password_hash, name, social, location) VALUES
+              ('a@x', 'h', 'Ada King Lovelace', '@ada', 'London, UK'), ('c@x', 'h', 'Cher', '', 'Malibu'),
+              ('g@x', 'h', '  Grace Hopper ', '', 'Arlington, Virginia, United States')`);
   migrate(old);
-  const rows = old.prepare('SELECT first_name, last_name, name, linkedin_profile_url FROM users ORDER BY id').all().map((r) => ({ ...r }));
+  const rows = old.prepare('SELECT first_name, last_name, name, linkedin_profile_url, country FROM users ORDER BY id').all().map((r) => ({ ...r }));
   assert.deepEqual(rows, [
-    { first_name: 'Ada', last_name: 'King Lovelace', name: 'Ada King Lovelace', linkedin_profile_url: '@ada' },
-    { first_name: 'Cher', last_name: '', name: 'Cher', linkedin_profile_url: '' },
-    { first_name: 'Grace', last_name: 'Hopper', name: 'Grace Hopper', linkedin_profile_url: '' },
+    { first_name: 'Ada', last_name: 'King Lovelace', name: 'Ada King Lovelace', linkedin_profile_url: '@ada', country: 'GB' },
+    { first_name: 'Cher', last_name: '', name: 'Cher', linkedin_profile_url: '', country: '' },
+    { first_name: 'Grace', last_name: 'Hopper', name: 'Grace Hopper', linkedin_profile_url: '', country: 'US' },
   ]);
   migrate(old); // safe to run again
 });
@@ -249,7 +251,10 @@ test('profile takes first and last name and a LinkedIn URL, and exports them', a
   let r = await s.post('/profile', { first_name: 'Ada', last_name: 'Lovelace', linkedin_profile_url: 'https://mastodon.social/@ada' });
   assert.equal(r.status, 400);
   assert.match(r.text, /must be a linkedin\.com address/);
-  r = await s.post('/profile', { first_name: 'Ada', last_name: 'King-Lovelace', linkedin_profile_url: 'linkedin.com/in/ada' });
+  r = await s.post('/profile', { first_name: 'Ada', last_name: 'Lovelace', country: 'Atlantis' });
+  assert.equal(r.status, 400);
+  assert.match(r.text, /choose a country from the list/);
+  r = await s.post('/profile', { first_name: 'Ada', last_name: 'King-Lovelace', linkedin_profile_url: 'linkedin.com/in/ada', country: 'GB' });
   assert.equal(r.status, 302);
   const u = db.prepare("SELECT first_name, last_name, name, linkedin_profile_url FROM users WHERE email = 'ada@example.com'").get();
   assert.equal(u.name, 'Ada King-Lovelace');
@@ -263,10 +268,19 @@ test('profile takes first and last name and a LinkedIn URL, and exports them', a
   assert.equal(ada.first_name, 'Ada');
   assert.equal(ada.last_name, 'King-Lovelace');
   assert.equal(ada.linkedin_profile_url, 'https://linkedin.com/in/ada');
+  assert.equal(ada.country, 'United Kingdom');
+  assert.equal(ada.country_code, 'GB');
+  assert.equal(ada.headshot_source, 'linkedin');
   const subs = await (await fetch(`${base}/api/export/${token}/submissions.json`)).json();
   const row = subs.find((x) => x.speaker_email === 'ada@example.com');
   assert.equal(row.speaker_first_name, 'Ada');
   assert.equal(row.speaker_last_name, 'King-Lovelace');
   assert.equal(row.speaker_name, 'Ada King-Lovelace');
   assert.ok('speaker_linkedin_profile_url' in row);
+  assert.ok(!('description' in row));
+  assert.ok(!('speaker_website' in row));
+  assert.equal(row.speaker_country, 'United Kingdom');
+  assert.equal(row.speaker_country_code, 'GB');
+  assert.equal(row.speaker_headshot_source, 'linkedin');
+  assert.ok(!('website' in ada));
 });
