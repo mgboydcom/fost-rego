@@ -10,7 +10,8 @@ const {
 const router = express.Router();
 
 const PROFILE_FIELDS = ['first_name', 'last_name', 'organization', 'job_title', 'bio', 'linkedin_profile_url', 'phone', 'country', 'photo_url'];
-const PROPOSAL_FIELDS = ['title', 'abstract', 'format', 'track', 'level', 'duration_minutes', 'co_speakers', 'notes'];
+// What speakers can set. track is assigned by organisers only (see routes/review.js).
+const PROPOSAL_FIELDS = ['title', 'abstract', 'format', 'level', 'co_speakers', 'notes'];
 
 // ---------- Profile ----------
 
@@ -73,15 +74,7 @@ function readProposal(body, conf) {
   if (!values.abstract) errors.push('Abstract is required.');
   if (values.abstract.length > 3000) errors.push('Abstract must be 3000 characters or fewer.');
   if (!conf.formatList.includes(values.format)) errors.push('Please choose a session format.');
-  if (conf.trackList.length && !conf.trackList.includes(values.track)) errors.push('Please choose a track.');
-  if (!conf.trackList.length) values.track = '';
   if (values.level && !LEVELS.includes(values.level)) errors.push('Please choose a valid audience level.');
-  if (values.duration_minutes === '') values.duration_minutes = null;
-  else {
-    const n = Number(values.duration_minutes);
-    if (!Number.isInteger(n) || n < 5 || n > 480) errors.push('Duration must be a whole number of minutes between 5 and 480.');
-    else values.duration_minutes = n;
-  }
   return { values, errors };
 }
 

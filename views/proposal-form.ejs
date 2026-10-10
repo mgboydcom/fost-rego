@@ -18,22 +18,11 @@
         <option value="">Choose…</option>
         <% conf.formatList.forEach(f => { %><option <%= values.format === f ? 'selected' : '' %>><%= f %></option><% }) %>
       </select></label>
-    <% if (conf.trackList.length) { %>
-    <label>Track
-      <select name="track" required>
-        <option value="">Choose…</option>
-        <% conf.trackList.forEach(t => { %><option <%= values.track === t ? 'selected' : '' %>><%= t %></option><% }) %>
-      </select></label>
-    <% } %>
-  </div>
-  <div class="field-row">
     <label>Audience level
       <select name="level">
         <option value="">Not specified</option>
         <% LEVELS.forEach(l => { %><option <%= values.level === l ? 'selected' : '' %>><%= l %></option><% }) %>
       </select></label>
-    <label>Preferred length (minutes) <span class="opt">optional</span>
-      <input type="number" name="duration_minutes" min="5" max="480" value="<%= values.duration_minutes ?? '' %>"></label>
   </div>
   <label>Co-speakers <span class="opt">name and email, one per line</span>
     <textarea name="co_speakers" rows="2"><%= values.co_speakers || '' %></textarea></label>

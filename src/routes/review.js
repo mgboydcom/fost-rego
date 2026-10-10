@@ -156,10 +156,26 @@ router.post('/proposals/:id/decision', requireRole('admin'), (req, res) => {
     flash(req, 'error', p.status === 'withdrawn' ? 'This proposal was withdrawn by the speaker.' : 'Choose a valid decision.');
     return res.redirect(`/review/proposals/${p.id}`);
   }
-  transaction(() => applyDecision(p, status, req.user.id, {
+  const conf = getConference(p.conference_id);
+  const extra = {
     feedback_to_speaker: String(req.body.feedback_to_speaker || '').trim(),
     internal_notes: String(req.body.internal_notes || '').trim(),
-  }));
+  };
+  // Track is assigned here by organisers; speakers never choose or see it.
+  if ('track' in req.body) {
+    const track = String(req.body.track || '');
+    if (track && track !== p.track && !conf.trackList.includes(track)) {
+      flash(req, 'error', 'Choose one of the conference\'s tracks.');
+      return res.redirect(`/review/proposals/${p.id}`);
+    }
+    extra.track = track;
+  }
+  transaction(() => {
+    applyDecision(p, status, req.user.id, extra);
+    if ('track' in extra && extra.track !== p.track) {
+      logHistory(p.id, req.user.id, 'track', `${p.track || 'none'} → ${extra.track || 'none'}`);
+    }
+  });
   flash(req, 'success', 'Decision saved.');
   res.redirect(`/review/proposals/${p.id}`);
 });

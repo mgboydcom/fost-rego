@@ -23,7 +23,7 @@ function submissions(filters = {}) {
   const w = where(filters);
   const rows = db.prepare(`
     SELECT p.id AS proposal_id, c.name AS conference, c.slug AS conference_slug,
-           p.title, p.format, p.track, p.level, p.duration_minutes, p.abstract,
+           p.title, p.format, p.track, p.level, p.abstract,
            p.co_speakers, p.notes AS notes_to_committee,
            p.status, c.decisions_published, p.speaker_confirmation, p.feedback_to_speaker, p.internal_notes,
            u.id AS speaker_id, u.name AS speaker_name, u.first_name AS speaker_first_name, u.last_name AS speaker_last_name,
@@ -47,7 +47,6 @@ function submissions(filters = {}) {
     speaker_headshot_source: headshotSource(r.speaker_photo_url, r.speaker_linkedin_profile_url),
     decisions_published: r.decisions_published ? 'yes' : 'no',
     average_score: r.average_score ?? '',
-    duration_minutes: r.duration_minutes ?? '',
     proposal_url: `${BASE_URL()}/proposals/${r.proposal_id}`,
     review_url: `${BASE_URL()}/review/proposals/${r.proposal_id}`,
   }));
@@ -61,7 +60,6 @@ function program(filters = {}) {
     format: r.format,
     track: r.track,
     level: r.level,
-    duration_minutes: r.duration_minutes,
     abstract: r.abstract,
     speaker_name: r.speaker_name,
     speaker_first_name: r.speaker_first_name,

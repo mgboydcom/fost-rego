@@ -95,6 +95,7 @@ test('full CFP lifecycle', async () => {
   assert.equal(r.status, 302);
   let p = db.prepare('SELECT * FROM proposals WHERE id = ?').get(pid);
   assert.equal(p.title, 'Designing durable APIs');
+  assert.equal(p.track, '', 'speakers cannot set the track');
   assert.equal(p.version, 2);
 
   // Another speaker cannot see it.
@@ -117,7 +118,10 @@ test('full CFP lifecycle', async () => {
   assert.equal(r.status, 403);
 
   // Admin accepts; speaker still sees "under review" until published.
-  r = await admin.post(`/review/proposals/${pid}/decision`, { status: 'accepted', feedback_to_speaker: 'Welcome aboard!', internal_notes: '' });
+  r = await admin.post(`/review/proposals/${pid}/decision`, { status: 'accepted', track: 'Nope', feedback_to_speaker: '', internal_notes: '' });
+  assert.equal(db.prepare('SELECT status FROM proposals WHERE id = ?').get(pid).status, 'submitted', 'invalid track rejects the save');
+  r = await admin.post(`/review/proposals/${pid}/decision`, { status: 'accepted', track: 'Design', feedback_to_speaker: 'Welcome aboard!', internal_notes: '' });
+  assert.equal(db.prepare('SELECT track FROM proposals WHERE id = ?').get(pid).track, 'Design');
   assert.equal(r.status, 302);
   r = await speaker.get(`/proposals/${pid}`);
   assert.match(r.text, /Under review/);
@@ -126,6 +130,7 @@ test('full CFP lifecycle', async () => {
   await admin.post(`/admin/conferences/${conf.id}/flags`, { flag: 'decisions_published', value: '1' });
   r = await speaker.get(`/proposals/${pid}`);
   assert.match(r.text, /Welcome aboard/);
+  assert.doesNotMatch(r.text, /Design ·|· Design/, 'speakers do not see the track');
   r = await speaker.post(`/proposals/${pid}/confirm`, { answer: 'confirm' });
   p = db.prepare('SELECT * FROM proposals WHERE id = ?').get(pid);
   assert.equal(p.speaker_confirmation, 'confirmed');

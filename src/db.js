@@ -60,7 +60,6 @@ CREATE TABLE IF NOT EXISTS proposals (
   format                TEXT NOT NULL DEFAULT '',
   track                 TEXT NOT NULL DEFAULT '',
   level                 TEXT NOT NULL DEFAULT '',
-  duration_minutes      INTEGER,
   co_speakers           TEXT NOT NULL DEFAULT '',
   notes                 TEXT NOT NULL DEFAULT '',
   status                TEXT NOT NULL DEFAULT 'submitted'

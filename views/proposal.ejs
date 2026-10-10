@@ -4,7 +4,7 @@
   <div>
     <span class="<%= badgeClass(shownStatus) %>"><%= statusLabel(shownStatus) %></span>
     <h1><%= p.title %></h1>
-    <p class="muted"><%= p.conference_name %> · <%= [p.format, p.track, p.level].filter(Boolean).join(' · ') %> · version <%= p.version %></p>
+    <p class="muted"><%= p.conference_name %> · <%= [p.format, p.level].filter(Boolean).join(' · ') %> · version <%= p.version %></p>
   </div>
   <div class="actions">
     <% if (editable) { %><a class="btn" href="/proposals/<%= p.id %>/edit">Edit proposal</a><% } %>
@@ -43,7 +43,6 @@
   <dl class="facts">
     <dt>Submitted</dt><dd><%= formatDate(p.submitted_at) %></dd>
     <dt>Last updated</dt><dd><%= formatDate(p.updated_at) %></dd>
-    <% if (p.duration_minutes) { %><dt>Preferred length</dt><dd><%= p.duration_minutes %> min</dd><% } %>
     <dt>Editing</dt><dd><%- include('partials/edit-window', { edit }) %></dd>
   </dl>
   <% if (history.length) { %>

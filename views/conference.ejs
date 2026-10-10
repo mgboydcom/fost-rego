@@ -8,7 +8,6 @@
   <dl class="facts">
     <% if (conf.cfp_opens) { %><dt>CFP opens</dt><dd><%= formatDate(conf.cfp_opens) %></dd><% } %>
     <% if (conf.cfp_closes) { %><dt>CFP closes</dt><dd><%= formatDate(conf.cfp_closes) %> (end of day)</dd><% } %>
-    <% if (conf.trackList.length) { %><dt>Tracks</dt><dd><%= conf.trackList.join(' · ') %></dd><% } %>
     <dt>Session formats</dt><dd><%= conf.formatList.join(' · ') %></dd>
     <% if (conf.blind_review) { %><dt>Review</dt><dd>Anonymous: reviewers do not see speaker names. Keep identifying details out of your abstract.</dd><% } %>
   </dl>
