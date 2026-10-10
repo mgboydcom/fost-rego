@@ -14,9 +14,9 @@ const iso = (offsetDays) => new Date(Date.now() + offsetDays * 86400000).toISOSt
 const pw = hashPassword('password123');
 
 const user = (email, name, role, extra = {}) => Number(db.prepare(`
-  INSERT INTO users (email, password_hash, name, role, organization, job_title, bio, created_at, updated_at)
-  VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`)
-  .run(email, pw, name, role, extra.organization || '', extra.job_title || '', extra.bio || '', now(), now()).lastInsertRowid);
+  INSERT INTO users (email, password_hash, first_name, last_name, role, organization, job_title, bio, created_at, updated_at)
+  VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`)
+  .run(email, pw, name.split(' ')[0], name.split(' ').slice(1).join(' '), role, extra.organization || '', extra.job_title || '', extra.bio || '', now(), now()).lastInsertRowid);
 
 const admin = user('admin@example.com', 'Olive Organiser', 'admin');
 const r1 = user('reviewer1@example.com', 'Rhea Reviewer', 'reviewer', { organization: 'Acme' });

@@ -22,9 +22,10 @@ function submissions(filters = {}) {
            p.title, p.format, p.track, p.level, p.duration_minutes, p.abstract, p.description,
            p.co_speakers, p.notes AS notes_to_committee,
            p.status, c.decisions_published, p.speaker_confirmation, p.feedback_to_speaker, p.internal_notes,
-           u.id AS speaker_id, u.name AS speaker_name, u.email AS speaker_email, u.organization AS speaker_organization,
+           u.id AS speaker_id, u.name AS speaker_name, u.first_name AS speaker_first_name, u.last_name AS speaker_last_name,
+           u.email AS speaker_email, u.organization AS speaker_organization,
            u.job_title AS speaker_job_title, u.phone AS speaker_phone, u.location AS speaker_location,
-           u.website AS speaker_website, u.social AS speaker_social, u.photo_url AS speaker_photo_url, u.bio AS speaker_bio,
+           u.website AS speaker_website, u.linkedin_profile_url AS speaker_linkedin_profile_url, u.photo_url AS speaker_photo_url, u.bio AS speaker_bio,
            (SELECT COUNT(*) FROM reviews r WHERE r.proposal_id = p.id) AS review_count,
            (SELECT ROUND(AVG(score), 2) FROM reviews r WHERE r.proposal_id = p.id) AS average_score,
            (SELECT COUNT(*) FROM reviews r WHERE r.proposal_id = p.id AND r.recommendation = 'accept') AS votes_accept,
@@ -57,13 +58,15 @@ function program(filters = {}) {
     duration_minutes: r.duration_minutes,
     abstract: r.abstract,
     speaker_name: r.speaker_name,
+    speaker_first_name: r.speaker_first_name,
+    speaker_last_name: r.speaker_last_name,
     speaker_email: r.speaker_email,
     speaker_organization: r.speaker_organization,
     speaker_job_title: r.speaker_job_title,
     speaker_bio: r.speaker_bio,
     speaker_photo_url: r.speaker_photo_url,
     speaker_website: r.speaker_website,
-    speaker_social: r.speaker_social,
+    speaker_linkedin_profile_url: r.speaker_linkedin_profile_url,
     co_speakers: r.co_speakers,
     decisions_published: r.decisions_published,
     speaker_confirmation: r.speaker_confirmation || 'pending',
@@ -76,8 +79,8 @@ function program(filters = {}) {
 function speakers(filters = {}) {
   const w = where(filters);
   return db.prepare(`
-    SELECT u.id AS speaker_id, u.name, u.email, u.organization, u.job_title, u.phone, u.location,
-           u.website, u.social, u.photo_url, u.bio,
+    SELECT u.id AS speaker_id, u.name, u.first_name, u.last_name, u.email, u.organization, u.job_title, u.phone, u.location,
+           u.website, u.linkedin_profile_url, u.photo_url, u.bio,
            COUNT(p.id) AS proposals_total,
            SUM(p.status = 'accepted') AS proposals_accepted,
            SUM(p.status = 'waitlisted') AS proposals_waitlisted,
@@ -92,7 +95,7 @@ function speakers(filters = {}) {
     JOIN conferences c ON c.id = p.conference_id
     ${w.sql}
     GROUP BY u.id
-    ORDER BY u.name`).all(...w.params);
+    ORDER BY u.last_name COLLATE NOCASE, u.first_name COLLATE NOCASE`).all(...w.params);
 }
 
 function reviews(filters = {}) {

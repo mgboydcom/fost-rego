@@ -6,7 +6,10 @@
   <% if (error) { %><div class="flash flash-error"><%= error %></div><% } %>
   <form method="post" action="/profile" class="form">
     <input type="hidden" name="_csrf" value="<%= csrf %>">
-    <label>Full name <input name="name" value="<%= values.name %>" required></label>
+    <div class="field-row">
+      <label>First name <input name="first_name" value="<%= values.first_name %>" required autocomplete="given-name"></label>
+      <label>Last name <input name="last_name" value="<%= values.last_name %>" autocomplete="family-name"></label>
+    </div>
     <div class="field-row">
       <label>Job title <input name="job_title" value="<%= values.job_title %>"></label>
       <label>Organisation <input name="organization" value="<%= values.organization %>"></label>
@@ -15,7 +18,7 @@
       <textarea name="bio" rows="6"><%= values.bio %></textarea></label>
     <div class="field-row">
       <label>Website <input name="website" value="<%= values.website %>" placeholder="https://"></label>
-      <label>Social handle(s) <input name="social" value="<%= values.social %>" placeholder="LinkedIn, Mastodon, Bluesky…"></label>
+      <label>LinkedIn profile URL <input name="linkedin_profile_url" inputmode="url" autocomplete="url" value="<%= values.linkedin_profile_url %>" placeholder="https://www.linkedin.com/in/your-name"></label>
     </div>
     <div class="field-row">
       <label>Phone <span class="opt">organisers only</span> <input name="phone" value="<%= values.phone %>"></label>

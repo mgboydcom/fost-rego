@@ -5,7 +5,10 @@
   <% if (error) { %><div class="flash flash-error"><%= error %></div><% } %>
   <form method="post" action="/register" class="form">
     <input type="hidden" name="_csrf" value="<%= csrf %>">
-    <label>Full name <input name="name" value="<%= values.name || '' %>" required autocomplete="name"></label>
+    <div class="field-row">
+      <label>First name <input name="first_name" value="<%= values.first_name || '' %>" required autocomplete="given-name"></label>
+      <label>Last name <input name="last_name" value="<%= values.last_name || '' %>" autocomplete="family-name"></label>
+    </div>
     <label>Email <input type="email" name="email" value="<%= values.email || '' %>" required autocomplete="email"></label>
     <label>Organisation <span class="opt">optional</span> <input name="organization" value="<%= values.organization || '' %>" autocomplete="organization"></label>
     <label>Password <span class="opt">at least 8 characters</span> <input type="password" name="password" minlength="8" required autocomplete="new-password"></label>

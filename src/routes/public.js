@@ -23,13 +23,14 @@ router.get('/register', (req, res) => {
 
 router.post('/register', (req, res) => {
   const values = {
-    name: String(req.body.name || '').trim(),
+    first_name: String(req.body.first_name || '').trim(),
+    last_name: String(req.body.last_name || '').trim(),
     email: String(req.body.email || '').trim().toLowerCase(),
     organization: String(req.body.organization || '').trim(),
   };
   const password = String(req.body.password || '');
   let error = null;
-  if (!values.name) error = 'Please enter your name.';
+  if (!values.first_name) error = 'Please enter your first name.';
   else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(values.email)) error = 'Please enter a valid email address.';
   else if (password.length < 8) error = 'Password must be at least 8 characters.';
   else if (db.prepare('SELECT 1 FROM users WHERE email = ?').get(values.email)) error = 'An account with that email already exists. Try signing in.';
@@ -38,9 +39,9 @@ router.post('/register', (req, res) => {
   // The very first account becomes the organiser (admin) so a fresh install can be set up from the browser.
   const isFirst = !db.prepare('SELECT 1 FROM users LIMIT 1').get();
   const { lastInsertRowid } = db.prepare(`
-    INSERT INTO users (email, password_hash, name, organization, role, created_at, updated_at)
-    VALUES (?, ?, ?, ?, ?, ?, ?)`)
-    .run(values.email, hashPassword(password), values.name, values.organization, isFirst ? 'admin' : 'speaker', now(), now());
+    INSERT INTO users (email, password_hash, first_name, last_name, organization, role, created_at, updated_at)
+    VALUES (?, ?, ?, ?, ?, ?, ?, ?)`)
+    .run(values.email, hashPassword(password), values.first_name, values.last_name, values.organization, isFirst ? 'admin' : 'speaker', now(), now());
   req.session.userId = Number(lastInsertRowid);
   flash(req, 'success', isFirst
     ? 'Welcome! As the first user you are the organiser (admin). Create your first conference below.'

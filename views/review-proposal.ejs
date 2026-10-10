@@ -22,7 +22,7 @@
     <p><strong><%= p.speaker_name %></strong><%= p.speaker_job_title ? ', ' + p.speaker_job_title : '' %><%= p.speaker_organization ? ' · ' + p.speaker_organization : '' %>
       <% if (user.role === 'admin') { %><br><a href="mailto:<%= p.speaker_email %>"><%= p.speaker_email %></a><% } %>
       <% if (safeUrl(p.speaker_website)) { %><br><a href="<%= safeUrl(p.speaker_website) %>" target="_blank" rel="noopener"><%= p.speaker_website %></a><% } %>
-      <% if (p.speaker_social) { %><br><span class="muted"><%= p.speaker_social %></span><% } %></p>
+      <% if (safeUrl(p.speaker_linkedin_profile_url)) { %><br><a href="<%= safeUrl(p.speaker_linkedin_profile_url) %>" target="_blank" rel="noopener">LinkedIn profile</a><% } %></p>
     <% if (p.speaker_bio) { %><div class="prose"><%= p.speaker_bio %></div><% } %>
     <% if (p.co_speakers) { %><h3>Co-speakers</h3><div class="prose"><%= p.co_speakers %></div><% } %>
   </section>

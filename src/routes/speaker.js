@@ -1,17 +1,31 @@
 const express = require('express');
 const { db, now, transaction } = require('../db');
 const { requireLogin, flash, hashPassword, verifyPassword } = require('../auth');
-const { formatDate } = require('../view-helpers');
+const { formatDate, safeUrl } = require('../view-helpers');
 const {
   LEVELS, listConferences, getConference, getProposal, publicStatus, canSpeakerEdit, editDeadline, editWindow, logHistory,
 } = require('../model');
 
 const router = express.Router();
 
-const PROFILE_FIELDS = ['name', 'organization', 'job_title', 'bio', 'website', 'social', 'phone', 'location', 'photo_url'];
+const PROFILE_FIELDS = ['first_name', 'last_name', 'organization', 'job_title', 'bio', 'website', 'linkedin_profile_url', 'phone', 'location', 'photo_url'];
 const PROPOSAL_FIELDS = ['title', 'abstract', 'description', 'format', 'track', 'level', 'duration_minutes', 'co_speakers', 'notes'];
 
 // ---------- Profile ----------
+
+// Returns an https linkedin.com URL, or null if the value isn't a LinkedIn address.
+function normalizeLinkedIn(value) {
+  const url = safeUrl(value);
+  if (!url) return null;
+  try {
+    const u = new URL(url);
+    if (!/(^|\.)linkedin\.com$/i.test(u.hostname)) return null;
+    u.protocol = 'https:';
+    return u.toString();
+  } catch {
+    return null;
+  }
+}
 
 router.get('/profile', requireLogin, (req, res) => {
   res.render('profile', { title: 'Your speaker profile', values: req.user, error: null });
@@ -19,8 +33,12 @@ router.get('/profile', requireLogin, (req, res) => {
 
 router.post('/profile', requireLogin, (req, res) => {
   const values = Object.fromEntries(PROFILE_FIELDS.map((f) => [f, String(req.body[f] || '').trim()]));
-  if (!values.name) {
-    return res.status(400).render('profile', { title: 'Your speaker profile', values: { ...req.user, ...values }, error: 'Name is required.' });
+  if (values.linkedin_profile_url) values.linkedin_profile_url = normalizeLinkedIn(values.linkedin_profile_url);
+  let error = null;
+  if (!values.first_name) error = 'First name is required.';
+  else if (values.linkedin_profile_url === null) error = 'LinkedIn profile URL must be a linkedin.com address, like https://www.linkedin.com/in/your-name.';
+  if (error) {
+    return res.status(400).render('profile', { title: 'Your speaker profile', values: { ...req.user, ...values, linkedin_profile_url: String(req.body.linkedin_profile_url || '') }, error });
   }
   const sets = PROFILE_FIELDS.map((f) => `${f} = ?`).join(', ');
   db.prepare(`UPDATE users SET ${sets}, updated_at = ? WHERE id = ?`)

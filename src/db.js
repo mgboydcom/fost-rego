@@ -8,13 +8,16 @@ CREATE TABLE IF NOT EXISTS users (
   id            INTEGER PRIMARY KEY AUTOINCREMENT,
   email         TEXT NOT NULL UNIQUE COLLATE NOCASE,
   password_hash TEXT NOT NULL,
-  name          TEXT NOT NULL,
+  first_name    TEXT NOT NULL,
+  last_name     TEXT NOT NULL DEFAULT '',
+  -- Full name, kept up to date by SQLite from first_name and last_name (read-only).
+  name          TEXT GENERATED ALWAYS AS (trim(first_name || ' ' || last_name)) VIRTUAL,
   role          TEXT NOT NULL DEFAULT 'speaker' CHECK (role IN ('speaker','reviewer','admin')),
   organization  TEXT NOT NULL DEFAULT '',
   job_title     TEXT NOT NULL DEFAULT '',
   bio           TEXT NOT NULL DEFAULT '',
   website       TEXT NOT NULL DEFAULT '',
-  social        TEXT NOT NULL DEFAULT '',
+  linkedin_profile_url TEXT NOT NULL DEFAULT '',
   phone         TEXT NOT NULL DEFAULT '',
   location      TEXT NOT NULL DEFAULT '',
   photo_url     TEXT NOT NULL DEFAULT '',
@@ -103,11 +106,35 @@ CREATE TABLE IF NOT EXISTS settings (
 );
 `;
 
+// Upgrades older databases: users.social became linkedin_profile_url, and users.name was split
+// into first_name and last_name.
+function migrate(db) {
+  const cols = db.prepare('PRAGMA table_xinfo(users)').all().map((c) => c.name);
+  if (cols.includes('social')) db.exec('ALTER TABLE users RENAME COLUMN social TO linkedin_profile_url');
+  if (cols.includes('first_name')) return;
+  db.exec('BEGIN');
+  try {
+    db.exec("ALTER TABLE users ADD COLUMN first_name TEXT NOT NULL DEFAULT ''");
+    db.exec("ALTER TABLE users ADD COLUMN last_name TEXT NOT NULL DEFAULT ''");
+    // Everything before the first space is the first name; the rest is the last name.
+    db.exec(`UPDATE users SET
+      first_name = CASE WHEN instr(trim(name), ' ') > 0 THEN substr(trim(name), 1, instr(trim(name), ' ') - 1) ELSE trim(name) END,
+      last_name  = CASE WHEN instr(trim(name), ' ') > 0 THEN trim(substr(trim(name), instr(trim(name), ' ') + 1)) ELSE '' END`);
+    db.exec('ALTER TABLE users DROP COLUMN name');
+    db.exec("ALTER TABLE users ADD COLUMN name TEXT GENERATED ALWAYS AS (trim(first_name || ' ' || last_name)) VIRTUAL");
+    db.exec('COMMIT');
+  } catch (err) {
+    db.exec('ROLLBACK');
+    throw err;
+  }
+}
+
 function open(file) {
   if (file !== ':memory:') fs.mkdirSync(path.dirname(file), { recursive: true });
   const db = new DatabaseSync(file);
   db.exec('PRAGMA foreign_keys = ON; PRAGMA journal_mode = WAL;');
   db.exec(SCHEMA);
+  migrate(db);
   return db;
 }
 
@@ -147,4 +174,4 @@ function transaction(fn) {
   }
 }
 
-module.exports = { db, now, getSetting, setSetting, ensureSecret, transaction };
+module.exports = { migrate, db, now, getSetting, setSetting, ensureSecret, transaction };

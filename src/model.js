@@ -43,7 +43,7 @@ function getProposal(id) {
   return db.prepare(`
     SELECT p.*, u.name AS speaker_name, u.email AS speaker_email, u.organization AS speaker_organization,
            u.job_title AS speaker_job_title, u.bio AS speaker_bio, u.website AS speaker_website,
-           u.social AS speaker_social, u.location AS speaker_location, u.photo_url AS speaker_photo_url,
+           u.linkedin_profile_url AS speaker_linkedin_profile_url, u.location AS speaker_location, u.photo_url AS speaker_photo_url,
            c.name AS conference_name, c.slug AS conference_slug
     FROM proposals p
     JOIN users u ON u.id = p.speaker_id

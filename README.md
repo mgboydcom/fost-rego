@@ -73,7 +73,7 @@ For automation, each dataset is also served from a secret-token URL that needs n
 
 - **Google Sheets:** `=IMPORTDATA("https://your-host/api/export/<token>/program.csv")`
 - **Zapier, Make, Power Automate or cron:** poll `submissions.json?updated_since=<last run>` and branch on `status`, `decisions_published` and `speaker_confirmation`. For example: send an acceptance email when a row has `accepted` and `yes`, send a reminder when confirmation is still empty after a week, or send logistics once a speaker is `confirmed`.
-- **Mail merge:** download `program.xlsx` and merge on `speaker_name`, `speaker_email`, `title` and `feedback_to_speaker`.
+- **Mail merge:** download `program.xlsx` and merge on `speaker_first_name` (for "Dear Ada"), `speaker_name`, `speaker_email`, `title` and `feedback_to_speaker`.
 
 The token is shown on the exports page and can be regenerated there, which immediately breaks the old links. Treat the token like a password, because exports contain speaker contact details. In CSV output, cells that start with `=`, `+`, `-` or `@` are prefixed with `'` so spreadsheets don't run user-entered text as a formula.
 
