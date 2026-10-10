@@ -80,9 +80,8 @@ main.wrap { padding-block: 32px 56px; min-height: 70vh; }
 .topbar { background: var(--rich-black); color: #fff; position: relative; }
 .topbar::after { content: ""; position: absolute; left: 0; right: 0; bottom: 0; height: 4px; background: var(--gradient-main); }
 .topbar-inner { display: flex; align-items: center; justify-content: space-between; gap: 12px 20px; min-height: 68px; padding-block: 10px 14px; flex-wrap: wrap; }
-.brand { display: flex; align-items: baseline; gap: 10px; text-decoration: none; color: #fff; }
-.brand-mark { font-weight: 700; font-size: 1.45rem; letter-spacing: .04em; color: #fff; }
-.brand-mark::after { content: "."; color: var(--orange); }
+.brand { display: flex; align-items: center; gap: 12px; text-decoration: none; color: #fff; }
+.brand-logo { display: block; height: 32px; width: auto; }
 .brand-sub { font-size: .75rem; font-weight: 600; text-transform: uppercase; letter-spacing: .08em; color: var(--orange); }
 .topbar nav { display: flex; align-items: center; gap: 6px 18px; flex-wrap: wrap; }
 .topbar nav a, .nav-button {
@@ -96,8 +95,13 @@ main.wrap { padding-block: 32px 56px; min-height: 70vh; }
 .topbar :focus-visible { outline-color: var(--orange); }
 
 .footer { background: var(--rich-black); color: #A3A9B8; font-size: .85rem; padding-block: 22px; border-top: 1px solid var(--border); }
-.footer-inner { display: flex; align-items: baseline; gap: 12px; flex-wrap: wrap; }
-.small-mark { font-size: 1rem; }
+.footer-inner { display: flex; align-items: center; gap: 8px 16px; flex-wrap: wrap; }
+.footer-logo { display: block; height: 22px; width: auto; }
+.tagline { font-size: .72rem; font-weight: 600; text-transform: uppercase; letter-spacing: .14em; }
+.footer .tagline { color: #fff; }
+.auth-logo { display: grid; justify-items: center; gap: 10px; padding-block: 6px 18px; margin-bottom: 18px; border-bottom: 1px solid var(--border); }
+.auth-logo img { height: 44px; width: auto; }
+.auth-logo .tagline { color: var(--text); }
 
 /* Hero: dark navy ground with orange highlights */
 .hero {

@@ -1,5 +1,6 @@
 <%- include('partials/header') %>
 <section class="card narrow">
+  <div class="auth-logo"><img src="/static/img/fost-wordmark.png" alt="FOST" width="152" height="44"><span class="tagline">Future of Software Technologies</span></div>
   <h1>Sign in</h1>
   <% if (error) { %><div class="flash flash-error"><%= error %></div><% } %>
   <form method="post" action="/login" class="form">
