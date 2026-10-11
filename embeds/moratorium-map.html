@@ -1,0 +1,271 @@
+<!--
+  FOSTBeat data centre moratorium map
+  Paste this whole block into an HTML / Custom HTML block on the blog.
+
+  Data is read live from the Google Sheet on every page load (and every
+  10 minutes while the page is open), so new rows appear automatically.
+  The sheet must stay shared as "Anyone with the link can view".
+
+  Locations are looked up from "jurisdiction" + "country" with OpenStreetMap
+  Nominatim and cached in the visitor's browser. To pin a row precisely
+  (or fix a wrong guess), add "lat" and "lng" columns to the sheet and fill
+  them in; those take priority over the lookup.
+-->
+<div id="fost-mora">
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"
+        integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin="">
+  <style>
+    #fost-mora {
+      --fm-ink: #1d2433; --fm-muted: #5b6475; --fm-line: #dde1e8; --fm-bg: #ffffff;
+      --fm-adopted: #c0392b; --fm-proposed: #e08a1e; --fm-extended: #7b3fa0;
+      --fm-lifted: #2e8b57; --fm-rejected: #6b7280; --fm-other: #2563eb;
+      font-family: inherit; color: var(--fm-ink); background: var(--fm-bg);
+      border: 1px solid var(--fm-line); border-radius: 10px; overflow: hidden;
+      max-width: 100%; box-sizing: border-box;
+    }
+    #fost-mora *, #fost-mora *::before, #fost-mora *::after { box-sizing: border-box; }
+    #fost-mora .fm-head { display: flex; flex-wrap: wrap; gap: 8px 16px; align-items: baseline;
+      justify-content: space-between; padding: 12px 16px; border-bottom: 1px solid var(--fm-line); }
+    #fost-mora .fm-title { margin: 0; font-size: 1.05rem; font-weight: 700; }
+    #fost-mora .fm-status { font-size: .8rem; color: var(--fm-muted); }
+    #fost-mora .fm-filters { display: flex; flex-wrap: wrap; gap: 6px; padding: 10px 16px 0; }
+    #fost-mora .fm-chip { display: inline-flex; align-items: center; gap: 6px; padding: 4px 10px;
+      border: 1px solid var(--fm-line); border-radius: 999px; background: #fff; cursor: pointer;
+      font: inherit; font-size: .8rem; color: var(--fm-ink); line-height: 1.3; }
+    #fost-mora .fm-chip[aria-pressed="false"] { opacity: .45; }
+    #fost-mora .fm-dot { width: 10px; height: 10px; border-radius: 50%; flex: none; }
+    #fost-mora .fm-map { height: 480px; width: 100%; margin-top: 10px; z-index: 0; }
+    @media (max-width: 600px) { #fost-mora .fm-map { height: 380px; } }
+    #fost-mora .fm-foot { padding: 8px 16px; font-size: .75rem; color: var(--fm-muted);
+      border-top: 1px solid var(--fm-line); }
+    #fost-mora .fm-foot a { color: inherit; }
+    #fost-mora .leaflet-popup-content { margin: 12px 14px; font-size: .85rem; line-height: 1.4; }
+    #fost-mora .fm-pop h4 { margin: 0 0 2px; font-size: .95rem; }
+    #fost-mora .fm-pop .fm-meta { color: var(--fm-muted); font-size: .78rem; margin-bottom: 6px; }
+    #fost-mora .fm-pop .fm-tag { display: inline-block; padding: 1px 7px; border-radius: 999px;
+      color: #fff; font-size: .72rem; font-weight: 600; text-transform: capitalize; margin-right: 4px; }
+    #fost-mora .fm-pop dl { display: grid; grid-template-columns: auto 1fr; gap: 2px 10px; margin: 6px 0; }
+    #fost-mora .fm-pop dt { color: var(--fm-muted); }
+    #fost-mora .fm-pop dd { margin: 0; }
+    #fost-mora .fm-pop p { margin: 6px 0; }
+    #fost-mora .fm-pop hr { border: 0; border-top: 1px solid var(--fm-line); margin: 10px 0; }
+  </style>
+
+  <div class="fm-head">
+    <h3 class="fm-title">Data centre moratoriums</h3>
+    <span class="fm-status" aria-live="polite">Loading tracker…</span>
+  </div>
+  <div class="fm-filters" role="group" aria-label="Filter by action type"></div>
+  <div class="fm-map" role="region" aria-label="Map of data centre moratoriums"></div>
+  <div class="fm-foot">
+    Source: <a href="https://docs.google.com/spreadsheets/d/1Rcciv20Lippo6uRTu_Sk33c1Vul8lq2kcvz4NfkEdsk/edit?usp=sharing"
+      target="_blank" rel="noopener">FOSTBeat data centre moratorium tracker</a>.
+    Locations are approximate.
+  </div>
+
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"
+          integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
+  <script>
+  (function () {
+    var SHEET_ID = '1Rcciv20Lippo6uRTu_Sk33c1Vul8lq2kcvz4NfkEdsk';
+    var SHEET_NAME = 'Moratoriums';
+    var REFRESH_MS = 10 * 60 * 1000;
+    var CACHE_KEY = 'fost-mora-geo-v1';
+
+    var root = document.getElementById('fost-mora');
+    var statusEl = root.querySelector('.fm-status');
+    var filtersEl = root.querySelector('.fm-filters');
+    var css = getComputedStyle(root);
+    var KNOWN = ['adopted', 'proposed', 'extended', 'lifted', 'rejected'];
+    function colorFor(type) {
+      var key = KNOWN.indexOf(type) >= 0 ? type : 'other';
+      return css.getPropertyValue('--fm-' + key).trim();
+    }
+
+    var map = L.map(root.querySelector('.fm-map'), { scrollWheelZoom: false, worldCopyJump: true })
+      .setView([30, 0], 2);
+    L.tileLayer('https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png', {
+      maxZoom: 18, subdomains: 'abcd',
+      attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> &copy; <a href="https://carto.com/attributions">CARTO</a>'
+    }).addTo(map);
+    map.on('focus', function () { map.scrollWheelZoom.enable(); });
+    map.on('blur', function () { map.scrollWheelZoom.disable(); });
+
+    var layer = L.featureGroup().addTo(map);
+    var hidden = {};      // action types switched off by the filter chips
+    var places = [];      // [{ key, latlng, rows }]
+    var firstFit = true;
+
+    function esc(s) {
+      return String(s == null ? '' : s).replace(/[&<>"']/g, function (c) {
+        return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c];
+      });
+    }
+    function safeUrl(u) { return /^https?:\/\//i.test(u || '') ? u : ''; }
+
+    // ---- Geocode cache (per visitor) ----------------------------------------
+    var cache = {};
+    try { cache = JSON.parse(localStorage.getItem(CACHE_KEY)) || {}; } catch (e) {}
+    function saveCache() { try { localStorage.setItem(CACHE_KEY, JSON.stringify(cache)); } catch (e) {} }
+
+    var queue = Promise.resolve();
+    function nominatim(params) {
+      // Nominatim asks for at most one request per second; serialize calls.
+      var p = queue.then(function () {
+        var url = 'https://nominatim.openstreetmap.org/search?format=jsonv2&limit=1&' +
+          Object.keys(params).map(function (k) { return k + '=' + encodeURIComponent(params[k]); }).join('&');
+        return fetch(url, { headers: { 'Accept-Language': 'en' } })
+          .then(function (r) { return r.ok ? r.json() : []; })
+          .catch(function () { return []; });
+      });
+      queue = p.then(function () { return new Promise(function (r) { setTimeout(r, 1100); }); });
+      return p.then(function (res) { return res[0] ? [+res[0].lat, +res[0].lon] : null; });
+    }
+
+    function geocode(row) {
+      var lat = parseFloat(row.lat || row.latitude), lng = parseFloat(row.lng || row.lon || row.longitude);
+      if (isFinite(lat) && isFinite(lng)) return Promise.resolve([lat, lng]);
+
+      var country = (row.country || '').trim();
+      var place = (row.jurisdiction || '').trim();
+      var national = !place || row.level === 'national' || row.level === 'country' ||
+        place.toLowerCase() === country.toLowerCase();
+      var key = (national ? '' : place + '|') + country;
+      if (cache[key]) return Promise.resolve(cache[key]);
+
+      var attempt = national
+        ? nominatim({ country: country, featureType: 'country' })
+        : nominatim({ q: place + ', ' + country }).then(function (ll) {
+            return ll || nominatim({ country: country, featureType: 'country' });
+          });
+      return attempt.then(function (ll) {
+        if (ll) { cache[key] = ll; saveCache(); }
+        return ll;
+      });
+    }
+
+    // ---- Sheet ---------------------------------------------------------------
+    function loadSheet() {
+      var url = 'https://docs.google.com/spreadsheets/d/' + SHEET_ID +
+        '/gviz/tq?tqx=out:json&headers=1&sheet=' + encodeURIComponent(SHEET_NAME) + '&_=' + Date.now();
+      return fetch(url).then(function (r) {
+        if (!r.ok) throw new Error('HTTP ' + r.status);
+        return r.text();
+      }).then(function (text) {
+        var json = JSON.parse(text.slice(text.indexOf('(') + 1, text.lastIndexOf(')')));
+        if (json.status === 'error') throw new Error('sheet not readable');
+        var cols = json.table.cols.map(function (c) {
+          return (c.label || c.id).trim().toLowerCase().replace(/\s+/g, '_');
+        });
+        return json.table.rows.map(function (r) {
+          var o = {};
+          (r.c || []).forEach(function (cell, i) {
+            o[cols[i]] = cell ? (cell.f != null ? cell.f : cell.v) : '';
+          });
+          o.action_type = String(o.action_type || 'other').trim().toLowerCase();
+          o.level = String(o.level || '').trim().toLowerCase();
+          return o;
+        }).filter(function (o) { return o.country || o.jurisdiction; });
+      });
+    }
+
+    // ---- Rendering -----------------------------------------------------------
+    function rowHtml(row) {
+      var src = safeUrl(row.source_url);
+      var dates = [];
+      if (row.effective_date) dates.push('<dt>Effective</dt><dd>' + esc(row.effective_date) + '</dd>');
+      if (row.expiry) dates.push('<dt>Expires</dt><dd>' + esc(row.expiry) + '</dd>');
+      if (row.scope) dates.push('<dt>Scope</dt><dd>' + esc(row.scope) + '</dd>');
+      return '<span class="fm-tag" style="background:' + colorFor(row.action_type) + '">' + esc(row.action_type) + '</span>' +
+        (String(row.verified).toLowerCase() === 'yes' ? '' : '<span class="fm-meta">(unverified)</span>') +
+        (dates.length ? '<dl>' + dates.join('') + '</dl>' : '') +
+        (row.summary ? '<p>' + esc(row.summary) + '</p>' : '') +
+        (src ? '<a href="' + esc(src) + '" target="_blank" rel="noopener">' + esc(row.headline || 'Source') + ' ↗</a>' : '');
+    }
+
+    function render() {
+      layer.clearLayers();
+      var shown = 0;
+      places.forEach(function (pl) {
+        var rows = pl.rows.filter(function (r) { return !hidden[r.action_type]; });
+        if (!rows.length) return;
+        shown += rows.length;
+        var first = rows[0];
+        var marker = L.circleMarker(pl.latlng, {
+          radius: 7 + Math.min(rows.length - 1, 4) * 2,
+          color: '#fff', weight: 2, fillColor: colorFor(first.action_type), fillOpacity: .9
+        });
+        var title = [first.jurisdiction, first.country].filter(Boolean)
+          .filter(function (v, i, a) { return a.indexOf(v) === i; }).join(', ');
+        marker.bindTooltip(esc(title));
+        marker.bindPopup('<div class="fm-pop"><h4>' + esc(title) + '</h4>' +
+          '<div class="fm-meta">' + esc(first.level) + '</div>' +
+          rows.map(rowHtml).join('<hr>') + '</div>', { maxWidth: 320 });
+        marker.addTo(layer);
+      });
+      return shown;
+    }
+
+    function renderFilters(rows) {
+      var counts = {};
+      rows.forEach(function (r) { counts[r.action_type] = (counts[r.action_type] || 0) + 1; });
+      var types = Object.keys(counts).sort(function (a, b) {
+        var ia = KNOWN.indexOf(a), ib = KNOWN.indexOf(b);
+        return (ia < 0 ? 99 : ia) - (ib < 0 ? 99 : ib) || a.localeCompare(b);
+      });
+      filtersEl.innerHTML = types.map(function (t) {
+        return '<button type="button" class="fm-chip" data-type="' + esc(t) + '" aria-pressed="' + !hidden[t] + '">' +
+          '<span class="fm-dot" style="background:' + colorFor(t) + '"></span>' +
+          '<span style="text-transform:capitalize">' + esc(t) + '</span> (' + counts[t] + ')</button>';
+      }).join('');
+    }
+    filtersEl.addEventListener('click', function (e) {
+      var btn = e.target.closest('.fm-chip');
+      if (!btn) return;
+      var t = btn.getAttribute('data-type');
+      hidden[t] = !hidden[t];
+      btn.setAttribute('aria-pressed', String(!hidden[t]));
+      render();
+    });
+
+    function refresh() {
+      return loadSheet().then(function (rows) {
+        renderFilters(rows);
+        var byKey = {};
+        var next = [];
+        var pending = rows.length;
+        var missing = 0;
+        statusEl.textContent = 'Locating ' + rows.length + ' entries…';
+        if (!pending) { places = []; render(); statusEl.textContent = 'No entries yet.'; return; }
+        rows.forEach(function (row) {
+          geocode(row).then(function (ll) {
+            if (ll) {
+              var k = ll.join(',');
+              if (!byKey[k]) { byKey[k] = { latlng: ll, rows: [] }; next.push(byKey[k]); }
+              byKey[k].rows.push(row);
+            } else {
+              missing++;
+            }
+            places = next;
+            render();
+            if (--pending === 0) {
+              if (firstFit && layer.getLayers().length) {
+                map.fitBounds(layer.getBounds(), { padding: [30, 30], maxZoom: 6 });
+                firstFit = false;
+              }
+              statusEl.textContent = rows.length + ' entr' + (rows.length === 1 ? 'y' : 'ies') +
+                (missing ? ' (' + missing + ' could not be placed)' : '') +
+                ' · updated ' + new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+            }
+          });
+        });
+      }).catch(function (err) {
+        statusEl.textContent = 'Could not load the tracker (' + err.message + ').';
+      });
+    }
+
+    refresh();
+    setInterval(refresh, REFRESH_MS);
+  })();
+  </script>
+</div>
