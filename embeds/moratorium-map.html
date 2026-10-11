@@ -1,16 +1,32 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Data centre moratorium map</title>
 <!--
-  FOSTBeat data centre moratorium map
-  Paste this whole block into an HTML / Custom HTML block on the blog.
+  FOSTBeat data centre moratorium map: standalone page.
+
+  The blog inserts post HTML with innerHTML, which never runs <script> tags,
+  so this map can't be pasted into a post directly. Host this file anywhere
+  public and embed it in the post with an iframe instead:
+
+    <iframe src="https://YOUR-HOST/moratorium-map.html" title="Data centre moratorium map"
+            style="width:100%;height:620px;border:0" loading="lazy"></iframe>
 
   Data is read live from the Google Sheet on every page load (and every
   10 minutes while the page is open), so new rows appear automatically.
-  The sheet must stay shared as "Anyone with the link can view".
+  The sheet must stay shared so that anyone with the link can view it.
 
   Locations are looked up from "jurisdiction" + "country" with OpenStreetMap
   Nominatim and cached in the visitor's browser. To pin a row precisely
   (or fix a wrong guess), add "lat" and "lng" columns to the sheet and fill
   them in; those take priority over the lookup.
 -->
+<style>html, body { margin: 0; padding: 0; background: transparent;
+  font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; }</style>
+</head>
+<body>
 <div id="fost-mora">
   <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"
         integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin="">
@@ -269,3 +285,5 @@
   })();
   </script>
 </div>
+</body>
+</html>
