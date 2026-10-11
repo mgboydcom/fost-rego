@@ -9,9 +9,10 @@
 
   The blog inserts post HTML with innerHTML, which never runs <script> tags,
   so this map can't be pasted into a post directly. Host this file anywhere
-  public and embed it in the post with an iframe instead:
+  public (it is served by GitHub Pages from this docs/ folder)
+  and embed it in the post with an iframe instead:
 
-    <iframe src="https://YOUR-HOST/moratorium-map.html" title="Data centre moratorium map"
+    <iframe src="https://mgboydcom.github.io/fost-rego/moratorium-map.html" title="Data centre moratorium map"
             style="width:100%;height:620px;border:0" loading="lazy"></iframe>
 
   Data is read live from the Google Sheet on every page load (and every
