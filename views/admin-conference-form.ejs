@@ -23,7 +23,7 @@
       <label>CFP closes <span class="opt">end of day; blank = never</span><input type="date" name="cfp_closes" value="<%= values.cfp_closes || '' %>"></label>
     </div>
     <div class="field-row">
-      <label>Tracks <span class="opt">one per line; leave blank for none</span><textarea name="tracks" rows="5"><%= values.tracks || '' %></textarea></label>
+      <label>Topics <span class="opt">one per line; leave blank for none</span><textarea name="topics" rows="5"><%= values.topics || '' %></textarea></label>
       <label>Session formats <span class="opt">one per line; blank = defaults</span><textarea name="formats" rows="5" placeholder="Talk (30 min)&#10;Lightning talk (10 min)&#10;Workshop (90 min)&#10;Panel (45 min)"><%= values.formats || '' %></textarea></label>
     </div>
     <label class="check"><input type="checkbox" name="blind_review" value="1" <%= values.blind_review ? 'checked' : '' %>> Anonymous review (hide speaker identity from reviewers)</label>

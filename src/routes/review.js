@@ -37,14 +37,14 @@ router.get('/conferences/:id', (req, res) => {
   }
   const filter = {
     status: STATUSES.includes(req.query.status) ? req.query.status : '',
-    track: conf.trackList.includes(req.query.track) ? req.query.track : '',
+    topic: conf.topicList.includes(req.query.topic) ? req.query.topic : '',
     todo: req.query.todo === '1',
     sort: ['score', 'reviews', 'title', 'newest'].includes(req.query.sort) ? req.query.sort : 'newest',
   };
   const clauses = ['p.conference_id = ?'];
   const params = [req.user.id, conf.id];
   if (filter.status) { clauses.push('p.status = ?'); params.push(filter.status); } else clauses.push("p.status != 'withdrawn'");
-  if (filter.track) { clauses.push('p.track = ?'); params.push(filter.track); }
+  if (filter.topic) { clauses.push('p.topic = ?'); params.push(filter.topic); }
   if (filter.todo) clauses.push('my.id IS NULL AND p.speaker_id != ' + Number(req.user.id));
   const order = {
     score: 'avg_score IS NULL, avg_score DESC',
@@ -53,7 +53,7 @@ router.get('/conferences/:id', (req, res) => {
     newest: 'p.submitted_at DESC',
   }[filter.sort];
   const proposals = db.prepare(`
-    SELECT p.id, p.title, p.format, p.track, p.level, p.status, p.speaker_confirmation, p.submitted_at, p.speaker_id,
+    SELECT p.id, p.title, p.format, p.topic, p.level, p.status, p.speaker_confirmation, p.submitted_at, p.speaker_id,
            u.name AS speaker_name, u.organization AS speaker_organization,
            (SELECT COUNT(*) FROM reviews r WHERE r.proposal_id = p.id) AS review_count,
            (SELECT ROUND(AVG(score), 2) FROM reviews r WHERE r.proposal_id = p.id) AS avg_score,
@@ -161,19 +161,19 @@ router.post('/proposals/:id/decision', requireRole('admin'), (req, res) => {
     feedback_to_speaker: String(req.body.feedback_to_speaker || '').trim(),
     internal_notes: String(req.body.internal_notes || '').trim(),
   };
-  // Track is assigned here by organisers; speakers never choose or see it.
-  if ('track' in req.body) {
-    const track = String(req.body.track || '');
-    if (track && track !== p.track && !conf.trackList.includes(track)) {
-      flash(req, 'error', 'Choose one of the conference\'s tracks.');
+  // Speakers choose the topic when they submit; organisers can change it here.
+  if ('topic' in req.body) {
+    const topic = String(req.body.topic || '');
+    if (topic && topic !== p.topic && !conf.topicList.includes(topic)) {
+      flash(req, 'error', 'Choose one of the conference\'s topics.');
       return res.redirect(`/review/proposals/${p.id}`);
     }
-    extra.track = track;
+    extra.topic = topic;
   }
   transaction(() => {
     applyDecision(p, status, req.user.id, extra);
-    if ('track' in extra && extra.track !== p.track) {
-      logHistory(p.id, req.user.id, 'track', `${p.track || 'none'} → ${extra.track || 'none'}`);
+    if ('topic' in extra && extra.topic !== p.topic) {
+      logHistory(p.id, req.user.id, 'topic', `${p.topic || 'none'} → ${extra.topic || 'none'}`);
     }
   });
   flash(req, 'success', 'Decision saved.');

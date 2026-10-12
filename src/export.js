@@ -23,7 +23,7 @@ function submissions(filters = {}) {
   const w = where(filters);
   const rows = db.prepare(`
     SELECT p.id AS proposal_id, c.name AS conference, c.slug AS conference_slug,
-           p.title, p.format, p.track, p.level, p.abstract,
+           p.title, p.format, p.topic, p.level, p.abstract,
            p.co_speakers, p.notes AS notes_to_committee,
            p.status, c.decisions_published, p.speaker_confirmation, p.feedback_to_speaker, p.internal_notes,
            u.id AS speaker_id, u.name AS speaker_name, u.first_name AS speaker_first_name, u.last_name AS speaker_last_name,
@@ -58,7 +58,7 @@ function program(filters = {}) {
     conference: r.conference,
     title: r.title,
     format: r.format,
-    track: r.track,
+    topic: r.topic,
     level: r.level,
     abstract: r.abstract,
     speaker_name: r.speaker_name,

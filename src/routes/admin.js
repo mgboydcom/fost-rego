@@ -7,7 +7,7 @@ const { listConferences, getConference, slugify } = require('../model');
 const router = express.Router();
 router.use(requireRole('admin'));
 
-const CONF_FIELDS = ['name', 'description', 'location', 'website', 'start_date', 'end_date', 'cfp_opens', 'cfp_closes', 'tracks', 'formats'];
+const CONF_FIELDS = ['name', 'description', 'location', 'website', 'start_date', 'end_date', 'cfp_opens', 'cfp_closes', 'topics', 'formats'];
 const DATE_FIELDS = ['start_date', 'end_date', 'cfp_opens', 'cfp_closes'];
 
 function readConference(body) {

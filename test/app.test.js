@@ -62,10 +62,10 @@ test('full CFP lifecycle', async () => {
   const admin = await register('Olive Organiser', 'admin@example.com');
   assert.equal(db.prepare("SELECT role FROM users WHERE email = 'admin@example.com'").get().role, 'admin');
 
-  // Admin creates a conference with tracks.
+  // Admin creates a conference with topics.
   let r = await admin.post('/admin/conferences', {
     name: 'API Conf 2027', description: 'Talks about APIs', start_date: '2027-03-01', end_date: '2027-03-02',
-    tracks: 'Design\nSecurity', cfp_opens: '', cfp_closes: '',
+    topics: 'Design\nSecurity', cfp_opens: '', cfp_closes: '',
   });
   assert.equal(r.status, 302);
   const conf = db.prepare('SELECT * FROM conferences').get();
@@ -79,23 +79,32 @@ test('full CFP lifecycle', async () => {
   const speaker = await register('Ada Lovelace', 'ada@example.com');
   r = await speaker.get('/proposals/new');
   assert.match(r.text, /API Conf 2027/);
-  r = await speaker.post('/proposals', { conference_id: conf.id, title: '', abstract: '', format: 'nope' });
+  r = await speaker.post('/proposals', { title: 'No conference', abstract: 'x' });
+  assert.equal(r.status, 400);
+  assert.match(r.text, /Choose at least one conference/);
+  r = await speaker.post('/proposals', { conference_ids: conf.id, title: '', abstract: '', [`format_${conf.id}`]: 'nope' });
   assert.equal(r.status, 400);
   assert.match(r.text, /Title is required/);
   r = await speaker.post('/proposals', {
-    conference_id: conf.id, title: 'Designing APIs', abstract: '=HYPERLINK("evil")', format: 'Talk (30 min)', track: 'Design', level: 'Beginner',
+    conference_ids: conf.id, title: 'Designing APIs', abstract: '=HYPERLINK("evil")', [`format_${conf.id}`]: 'Talk (30 min)', level: 'Beginner',
+  });
+  assert.equal(r.status, 400, 'a topic is required when the conference has topics');
+  assert.match(r.text, /Please choose a topic/);
+  r = await speaker.post('/proposals', {
+    conference_ids: conf.id, title: 'Designing APIs', abstract: '=HYPERLINK("evil")', [`format_${conf.id}`]: 'Talk (30 min)', [`topic_${conf.id}`]: 'Design', level: 'Beginner',
   });
   assert.equal(r.status, 302);
   const pid = Number(r.location.split('/').pop());
+  assert.equal(db.prepare('SELECT topic FROM proposals WHERE id = ?').get(pid).topic, 'Design');
 
   // Speaker edits; version bumps and history recorded.
   r = await speaker.post(`/proposals/${pid}/edit`, {
-    conference_id: conf.id, title: 'Designing durable APIs', abstract: '=HYPERLINK("evil")', format: 'Talk (30 min)', track: 'Design', level: 'Beginner',
+    title: 'Designing durable APIs', abstract: '=HYPERLINK("evil")', [`format_${conf.id}`]: 'Talk (30 min)', [`topic_${conf.id}`]: 'Security', level: 'Beginner',
   });
   assert.equal(r.status, 302);
   let p = db.prepare('SELECT * FROM proposals WHERE id = ?').get(pid);
   assert.equal(p.title, 'Designing durable APIs');
-  assert.equal(p.track, '', 'speakers cannot set the track');
+  assert.equal(p.topic, 'Security', 'speakers can change their topic');
   assert.equal(p.version, 2);
 
   // Another speaker cannot see it.
@@ -118,10 +127,10 @@ test('full CFP lifecycle', async () => {
   assert.equal(r.status, 403);
 
   // Admin accepts; speaker still sees "under review" until published.
-  r = await admin.post(`/review/proposals/${pid}/decision`, { status: 'accepted', track: 'Nope', feedback_to_speaker: '', internal_notes: '' });
-  assert.equal(db.prepare('SELECT status FROM proposals WHERE id = ?').get(pid).status, 'submitted', 'invalid track rejects the save');
-  r = await admin.post(`/review/proposals/${pid}/decision`, { status: 'accepted', track: 'Design', feedback_to_speaker: 'Welcome aboard!', internal_notes: '' });
-  assert.equal(db.prepare('SELECT track FROM proposals WHERE id = ?').get(pid).track, 'Design');
+  r = await admin.post(`/review/proposals/${pid}/decision`, { status: 'accepted', topic: 'Nope', feedback_to_speaker: '', internal_notes: '' });
+  assert.equal(db.prepare('SELECT status FROM proposals WHERE id = ?').get(pid).status, 'submitted', 'invalid topic rejects the save');
+  r = await admin.post(`/review/proposals/${pid}/decision`, { status: 'accepted', topic: 'Design', feedback_to_speaker: 'Welcome aboard!', internal_notes: '' });
+  assert.equal(db.prepare('SELECT topic FROM proposals WHERE id = ?').get(pid).topic, 'Design', 'organisers can change the topic');
   assert.equal(r.status, 302);
   r = await speaker.get(`/proposals/${pid}`);
   assert.match(r.text, /Under review/);
@@ -130,7 +139,7 @@ test('full CFP lifecycle', async () => {
   await admin.post(`/admin/conferences/${conf.id}/flags`, { flag: 'decisions_published', value: '1' });
   r = await speaker.get(`/proposals/${pid}`);
   assert.match(r.text, /Welcome aboard/);
-  assert.doesNotMatch(r.text, /Design ·|· Design/, 'speakers do not see the track');
+  assert.match(r.text, /Talk \(30 min\) · Design · Beginner/, 'speakers see their topic');
   r = await speaker.post(`/proposals/${pid}/confirm`, { answer: 'confirm' });
   p = db.prepare('SELECT * FROM proposals WHERE id = ?').get(pid);
   assert.equal(p.speaker_confirmation, 'confirmed');
@@ -180,9 +189,9 @@ test('closed CFP rejects new submissions', async () => {
   const conf = db.prepare("SELECT * FROM conferences WHERE name = 'Old Conf'").get();
   const s = browser();
   await s.post('/login', { email: 'ada@example.com', password: 'password123' });
-  const r = await s.post('/proposals', { conference_id: conf.id, title: 'Late', abstract: 'x', format: 'Talk (30 min)' });
-  assert.equal(r.status, 302);
-  assert.equal(r.location, '/proposals/new');
+  const r = await s.post('/proposals', { conference_ids: conf.id, title: 'Late', abstract: 'x', [`format_${conf.id}`]: 'Talk (30 min)' });
+  assert.equal(r.status, 400);
+  assert.match(r.text, /no longer accepting proposals/);
   assert.equal(db.prepare('SELECT COUNT(*) AS n FROM proposals WHERE conference_id = ?').get(conf.id).n, 0);
 });
 
@@ -219,13 +228,13 @@ test('speakers can still edit after the CFP closes and see the time left', async
   await s.post('/login', { email: 'ada@example.com', password: 'password123' });
   let r = await s.get('/proposals');
   assert.match(r.text, /29 days left to edit/);
-  r = await s.post(`/proposals/${pid}/edit`, { title: 'After close', abstract: 'x', format: 'Talk (30 min)' });
+  r = await s.post(`/proposals/${pid}/edit`, { title: 'After close', abstract: 'x', [`format_${conf.id}`]: 'Talk (30 min)' });
   assert.equal(r.status, 302);
   assert.equal(db.prepare('SELECT title FROM proposals WHERE id = ?').get(pid).title, 'After close');
 
   // Once the conference starts, editing stops.
   db.prepare("UPDATE conferences SET start_date = '2020-03-01' WHERE id = ?").run(conf.id);
-  r = await s.post(`/proposals/${pid}/edit`, { title: 'Too late', abstract: 'x', format: 'Talk (30 min)' });
+  r = await s.post(`/proposals/${pid}/edit`, { title: 'Too late', abstract: 'x', [`format_${conf.id}`]: 'Talk (30 min)' });
   assert.equal(db.prepare('SELECT title FROM proposals WHERE id = ?').get(pid).title, 'After close');
   r = await s.get('/proposals');
   assert.match(r.text, /Editing closed/);
@@ -248,6 +257,14 @@ test('migrates older databases: name split into first/last, social renamed', () 
     { first_name: 'Grace', last_name: 'Hopper', name: 'Grace Hopper', linkedin_profile_url: '', country: 'US' },
   ]);
   migrate(old); // safe to run again
+
+  const older = new DatabaseSync(':memory:');
+  older.exec(`CREATE TABLE users (id INTEGER PRIMARY KEY, first_name TEXT, last_name TEXT, country TEXT, linkedin_profile_url TEXT);
+              CREATE TABLE conferences (id INTEGER PRIMARY KEY, tracks TEXT); CREATE TABLE proposals (id INTEGER PRIMARY KEY, track TEXT);
+              INSERT INTO conferences (tracks) VALUES ('APIs'); INSERT INTO proposals (track) VALUES ('APIs');`);
+  migrate(older);
+  assert.equal(older.prepare('SELECT topics FROM conferences').get().topics, 'APIs', 'tracks renamed to topics');
+  assert.equal(older.prepare('SELECT topic FROM proposals').get().topic, 'APIs', 'track renamed to topic');
 });
 
 test('profile takes first and last name and a LinkedIn URL, and exports them', async () => {
@@ -288,4 +305,40 @@ test('profile takes first and last name and a LinkedIn URL, and exports them', a
   assert.equal(row.speaker_country_code, 'GB');
   assert.equal(row.speaker_headshot_source, 'linkedin');
   assert.ok(!('website' in ada));
+});
+
+test('one proposal can be submitted to several conferences at once', async () => {
+  const admin = browser();
+  await admin.post('/login', { email: 'admin@example.com', password: 'password123' });
+  await admin.post('/admin/conferences', { name: 'Multi A', topics: 'APIs\nAI' });
+  await admin.post('/admin/conferences', { name: 'Multi B', formats: 'Keynote\nTalk (20 min)' });
+  const a = db.prepare("SELECT * FROM conferences WHERE name = 'Multi A'").get();
+  const b = db.prepare("SELECT * FROM conferences WHERE name = 'Multi B'").get();
+
+  const s = browser();
+  await s.post('/login', { email: 'ada@example.com', password: 'password123' });
+  let r = await s.get('/proposals/new?conference=multi-a');
+  assert.match(r.text, new RegExp(`value="${a.id}" checked`), 'the conference from the link is preselected');
+  assert.match(r.text, /Multi B/, 'other open conferences can be ticked too');
+
+  const form = {
+    conference_ids: [a.id, b.id], title: 'One talk, two events', abstract: 'Same abstract everywhere.', level: 'Advanced',
+    [`format_${a.id}`]: 'Talk (30 min)', [`topic_${a.id}`]: 'AI',
+    [`format_${b.id}`]: 'Talk (30 min)', // not one of Multi B's formats
+  };
+  r = await s.post('/proposals', form);
+  assert.equal(r.status, 400);
+  assert.match(r.text, /Please choose a session format for Multi B/);
+  assert.equal(db.prepare("SELECT COUNT(*) AS n FROM proposals WHERE title = 'One talk, two events'").get().n, 0, 'nothing is saved until every conference is valid');
+
+  r = await s.post('/proposals', { ...form, [`format_${b.id}`]: 'Keynote' });
+  assert.equal(r.status, 302);
+  assert.equal(r.location, '/proposals');
+  const rows = db.prepare("SELECT conference_id, format, topic, level FROM proposals WHERE title = 'One talk, two events' ORDER BY conference_id").all().map((x) => ({ ...x }));
+  assert.deepEqual(rows, [
+    { conference_id: a.id, format: 'Talk (30 min)', topic: 'AI', level: 'Advanced' },
+    { conference_id: b.id, format: 'Keynote', topic: '', level: 'Advanced' },
+  ]);
+  r = await s.get('/proposals');
+  assert.match(r.text, /submitted to 2 conferences/);
 });

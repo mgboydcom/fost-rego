@@ -6,7 +6,7 @@
 <span class="<%= badgeClass(p.status) %>"><%= statusLabel(p.status) %></span>
 <% if (p.status === 'accepted') { %><span class="badge"><%= p.speaker_confirmation ? 'Speaker ' + p.speaker_confirmation : 'Awaiting speaker confirmation' %></span><% } %>
 <h1><%= p.title %></h1>
-<p class="muted"><%= [p.format, p.track, p.level].filter(Boolean).join(' · ') %> · #<%= p.id %> · v<%= p.version %> · submitted <%= formatDate(p.submitted_at) %></p>
+<p class="muted"><%= [p.format, p.topic, p.level].filter(Boolean).join(' · ') %> · #<%= p.id %> · v<%= p.version %> · submitted <%= formatDate(p.submitted_at) %></p>
 
 <div class="two-col wide-left">
 <div>
@@ -86,12 +86,12 @@
       <input type="hidden" name="_csrf" value="<%= csrf %>">
       <label>Status
         <select name="status"><% DECISIONS.forEach(s => { %><option value="<%= s %>" <%= p.status === s ? 'selected' : '' %>><%= statusLabel(s) %></option><% }) %></select></label>
-      <% if (conf.trackList.length || p.track) { %>
-      <label>Track <span class="opt">organisers only; speakers don't see it</span>
-        <select name="track">
+      <% if (conf.topicList.length || p.topic) { %>
+      <label>Topic <span class="opt">chosen by the speaker; you can change it</span>
+        <select name="topic">
           <option value="">Not assigned</option>
-          <% conf.trackList.forEach(t => { %><option <%= p.track === t ? 'selected' : '' %>><%= t %></option><% }) %>
-          <% if (p.track && !conf.trackList.includes(p.track)) { %><option selected><%= p.track %></option><% } %>
+          <% conf.topicList.forEach(t => { %><option <%= p.topic === t ? 'selected' : '' %>><%= t %></option><% }) %>
+          <% if (p.topic && !conf.topicList.includes(p.topic)) { %><option selected><%= p.topic %></option><% } %>
         </select></label>
       <% } %>
       <label>Message to speaker <span class="opt">shown once decisions are published; also in exports</span>

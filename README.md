@@ -4,7 +4,7 @@ A small web app for running calls for proposals (CFPs) across one or more confer
 
 - **Speakers** create an account, pick which conference to submit to, submit while the call is open, and keep editing their proposals right up to the day before the conference starts. Each proposal shows how much time is left to edit. Once accepted, they confirm or decline their slot.
 - **The program review committee** scores each proposal from 1 to 5, recommends accept, maybe or reject, and leaves comments. Reviewers see colleagues' reviews only after submitting their own. Anonymous review can be switched on per conference.
-- **Organisers (admins)** create conferences (dates, CFP window, tracks, session formats), choose the committee, make decisions one at a time or in bulk, write a message to each speaker, and choose when decisions become visible to speakers.
+- **Organisers (admins)** create conferences (dates, CFP window, topics, session formats), choose the committee, make decisions one at a time or in bulk, write a message to each speaker, and choose when decisions become visible to speakers.
 - **Everything exports to spreadsheets** (`.xlsx`, `.csv` and `.json`) with stable column names, so the data can feed mail merges, Google Sheets, Zapier, Make, Power Automate and similar tools.
 
 ## Quick start

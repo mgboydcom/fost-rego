@@ -26,29 +26,29 @@ const grace = user('grace@example.com', 'Grace Hopper', 'speaker', { organizatio
 const linus = user('linus@example.com', 'Linus Torvalds', 'speaker', { organization: 'Linux Foundation', job_title: 'Fellow', bio: 'Linus maintains a small hobby kernel.' });
 
 const conf = (name, slug, opts) => Number(db.prepare(`
-  INSERT INTO conferences (name, slug, description, location, start_date, end_date, cfp_opens, cfp_closes, tracks, blind_review, created_at, updated_at)
+  INSERT INTO conferences (name, slug, description, location, start_date, end_date, cfp_opens, cfp_closes, topics, blind_review, created_at, updated_at)
   VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`)
-  .run(name, slug, opts.description, opts.location, opts.start, opts.end, opts.opens, opts.closes, opts.tracks, opts.blind ? 1 : 0, now(), now()).lastInsertRowid);
+  .run(name, slug, opts.description, opts.location, opts.start, opts.end, opts.opens, opts.closes, opts.topics, opts.blind ? 1 : 0, now(), now()).lastInsertRowid);
 
 const apiConf = conf('APIDays Europe 2027', 'apidays-europe-2027', {
   description: 'Two days of talks and workshops on API design, platforms and AI integrations.',
   location: 'Paris, France', start: iso(120), end: iso(121), opens: iso(-30), closes: iso(30),
-  tracks: 'API Design\nPlatform Engineering\nAI & Agents\nSecurity',
+  topics: 'API Design\nPlatform Engineering\nAI & Agents\nSecurity',
 });
 const osConf = conf('Open Source Summit 2027', 'oss-summit-2027', {
   description: 'Community-driven conference for open source maintainers and contributors.',
   location: 'Online', start: iso(200), end: iso(202), opens: iso(-10), closes: iso(60),
-  tracks: 'Maintainership\nCommunity\nTooling', blind: true,
+  topics: 'Maintainership\nCommunity\nTooling', blind: true,
 });
 
 for (const [c, u] of [[apiConf, r1], [apiConf, r2], [osConf, r1]]) {
   db.prepare('INSERT INTO conference_reviewers (conference_id, user_id) VALUES (?, ?)').run(c, u);
 }
 
-const proposal = (c, speaker, title, format, track, abstract) => Number(db.prepare(`
-  INSERT INTO proposals (conference_id, speaker_id, title, abstract, format, track, level, submitted_at, updated_at)
+const proposal = (c, speaker, title, format, topic, abstract) => Number(db.prepare(`
+  INSERT INTO proposals (conference_id, speaker_id, title, abstract, format, topic, level, submitted_at, updated_at)
   VALUES (?, ?, ?, ?, ?, ?, 'Intermediate', ?, ?)`)
-  .run(c, speaker, title, abstract, format, track, now(), now()).lastInsertRowid);
+  .run(c, speaker, title, abstract, format, topic, now(), now()).lastInsertRowid);
 
 const p1 = proposal(apiConf, ada, 'Designing APIs for engines that do not exist yet', 'Talk (30 min)', 'API Design', 'How to design interfaces that outlive their first implementation.');
 const p2 = proposal(apiConf, grace, 'Compilers, contracts and the OpenAPI spec', 'Talk (30 min)', 'Platform Engineering', 'Treat your API description as a compiler input and generate everything else.');

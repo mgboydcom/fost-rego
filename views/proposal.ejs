@@ -4,7 +4,7 @@
   <div>
     <span class="<%= badgeClass(shownStatus) %>"><%= statusLabel(shownStatus) %></span>
     <h1><%= p.title %></h1>
-    <p class="muted"><%= p.conference_name %> · <%= [p.format, p.level].filter(Boolean).join(' · ') %> · version <%= p.version %></p>
+    <p class="muted"><%= p.conference_name %> · <%= [p.format, p.topic, p.level].filter(Boolean).join(' · ') %> · version <%= p.version %></p>
   </div>
   <div class="actions">
     <% if (editable) { %><a class="btn" href="/proposals/<%= p.id %>/edit">Edit proposal</a><% } %>

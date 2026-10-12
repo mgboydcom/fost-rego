@@ -10,8 +10,11 @@ const {
 const router = express.Router();
 
 const PROFILE_FIELDS = ['first_name', 'last_name', 'organization', 'job_title', 'bio', 'linkedin_profile_url', 'phone', 'country', 'photo_url'];
-// What speakers can set. track is assigned by organisers only (see routes/review.js).
-const PROPOSAL_FIELDS = ['title', 'abstract', 'format', 'level', 'co_speakers', 'notes'];
+// What speakers can set. The same title, abstract, level, co-speakers and notes go to every
+// conference a speaker picks; format and topic are chosen per conference from that conference's lists.
+const COMMON_FIELDS = ['title', 'abstract', 'level', 'co_speakers', 'notes'];
+const PER_CONFERENCE_FIELDS = ['format', 'topic'];
+const PROPOSAL_FIELDS = [...COMMON_FIELDS, ...PER_CONFERENCE_FIELDS];
 
 // ---------- Profile ----------
 
@@ -66,16 +69,41 @@ router.post('/profile/password', requireLogin, (req, res) => {
 
 // ---------- Proposals ----------
 
-function readProposal(body, conf) {
-  const values = Object.fromEntries(PROPOSAL_FIELDS.map((f) => [f, String(body[f] || '').trim()]));
+function readCommon(body) {
+  const values = Object.fromEntries(COMMON_FIELDS.map((f) => [f, String(body[f] || '').trim()]));
   const errors = [];
   if (!values.title) errors.push('Title is required.');
   if (values.title.length > 200) errors.push('Title must be 200 characters or fewer.');
   if (!values.abstract) errors.push('Abstract is required.');
   if (values.abstract.length > 3000) errors.push('Abstract must be 3000 characters or fewer.');
-  if (!conf.formatList.includes(values.format)) errors.push('Please choose a session format.');
   if (values.level && !LEVELS.includes(values.level)) errors.push('Please choose a valid audience level.');
   return { values, errors };
+}
+
+// Format and topic for one conference, posted as format_<id> and topic_<id>.
+// `current` is the proposal being edited, so a topic an organiser set can be kept even if it's no longer listed.
+function readConferenceChoice(body, conf, { label = '', current = null } = {}) {
+  const pick = {
+    format: String(body[`format_${conf.id}`] || '').trim(),
+    topic: String(body[`topic_${conf.id}`] || '').trim(),
+  };
+  const errors = [];
+  const where = label ? ` for ${conf.name}` : '';
+  if (!conf.formatList.includes(pick.format) && !(current && pick.format === current.format)) {
+    errors.push(`Please choose a session format${where}.`);
+  }
+  if (conf.topicList.length) {
+    if (!conf.topicList.includes(pick.topic) && !(current && pick.topic && pick.topic === current.topic)) {
+      errors.push(`Please choose a topic${where}.`);
+    }
+  } else if (!(current && pick.topic === current.topic)) {
+    pick.topic = '';
+  }
+  return { pick, errors };
+}
+
+function renderForm(res, status, { title, confs, selected, values, picks, errors, proposal = null, edit = null }) {
+  res.status(status).render('proposal-form', { title, confs, selected, values, picks, errors, proposal, edit, LEVELS });
 }
 
 function loadOwnProposal(req, res) {
@@ -103,38 +131,54 @@ router.get('/proposals', requireLogin, (req, res) => {
 
 router.get('/proposals/new', requireLogin, (req, res) => {
   const openConfs = listConferences().filter((c) => c.cfpOpen);
-  const conf = req.query.conference ? getConference(req.query.conference) : null;
-  if (!conf || !conf.cfpOpen) {
-    return res.render('choose-conference', { title: 'Choose a conference', openConfs });
-  }
-  res.render('proposal-form', {
-    title: `Submit to ${conf.name}`, conf, openConfs, values: { level: '' }, errors: [], proposal: null, LEVELS,
-  });
+  if (!openConfs.length) return res.render('choose-conference', { title: 'Submit a proposal', openConfs });
+  const wanted = req.query.conference ? getConference(req.query.conference) : null;
+  let selected = [];
+  if (wanted && wanted.cfpOpen) selected = [wanted.id];
+  else if (openConfs.length === 1) selected = [openConfs[0].id];
+  renderForm(res, 200, { title: 'Submit a proposal', confs: openConfs, selected, values: { level: '' }, picks: {}, errors: [] });
 });
 
 router.post('/proposals', requireLogin, (req, res) => {
-  const conf = getConference(req.body.conference_id);
-  if (!conf || !conf.cfpOpen) {
-    flash(req, 'error', 'That conference is not accepting proposals.');
-    return res.redirect('/proposals/new');
+  const openConfs = listConferences().filter((c) => c.cfpOpen);
+  const ids = [...new Set([].concat(req.body.conference_ids || []).map(Number))];
+  const confs = ids.map((id) => getConference(id)).filter(Boolean);
+  const closed = confs.filter((c) => !c.cfpOpen);
+  const chosen = confs.filter((c) => c.cfpOpen);
+
+  const { values, errors } = readCommon(req.body);
+  const picks = {};
+  if (!chosen.length) errors.unshift(closed.length ? 'That conference is no longer accepting proposals.' : 'Choose at least one conference to submit to.');
+  for (const c of closed) errors.push(`${c.name} is no longer accepting proposals.`);
+  for (const conf of chosen) {
+    const r = readConferenceChoice(req.body, conf, { label: chosen.length > 1 });
+    picks[conf.id] = r.pick;
+    errors.push(...r.errors);
   }
-  const { values, errors } = readProposal(req.body, conf);
   if (errors.length) {
-    return res.status(400).render('proposal-form', {
-      title: `Submit to ${conf.name}`, conf, openConfs: [], values, errors, proposal: null, LEVELS,
-    });
+    if (!openConfs.length) {
+      flash(req, 'error', errors[0]);
+      return res.redirect('/proposals');
+    }
+    return renderForm(res, 400, { title: 'Submit a proposal', confs: openConfs, selected: chosen.map((c) => c.id), values, picks, errors });
   }
-  const id = transaction(() => {
+
+  const newIds = transaction(() => chosen.map((conf) => {
+    const row = { ...values, ...picks[conf.id] };
     const { lastInsertRowid } = db.prepare(`
       INSERT INTO proposals (conference_id, speaker_id, ${PROPOSAL_FIELDS.join(', ')}, submitted_at, updated_at)
       VALUES (?, ?, ${PROPOSAL_FIELDS.map(() => '?').join(', ')}, ?, ?)`)
-      .run(conf.id, req.user.id, ...PROPOSAL_FIELDS.map((f) => values[f]), now(), now());
+      .run(conf.id, req.user.id, ...PROPOSAL_FIELDS.map((f) => row[f]), now(), now());
     logHistory(Number(lastInsertRowid), req.user.id, 'submitted');
     return Number(lastInsertRowid);
-  });
-  const deadline = editDeadline(conf);
-  flash(req, 'success', `Thanks! Your proposal has been submitted. You can keep editing it${deadline ? ` until ${formatDate(deadline)}, the day before the conference` : ''}.`);
-  res.redirect(`/proposals/${id}`);
+  }));
+  if (chosen.length === 1) {
+    const deadline = editDeadline(chosen[0]);
+    flash(req, 'success', `Thanks! Your proposal has been submitted. You can keep editing it${deadline ? ` until ${formatDate(deadline)}, the day before the conference` : ''}.`);
+    return res.redirect(`/proposals/${newIds[0]}`);
+  }
+  flash(req, 'success', `Thanks! Your proposal has been submitted to ${chosen.length} conferences: ${chosen.map((c) => c.name).join(', ')}. Each one is reviewed separately, and you can edit each one on its own.`);
+  res.redirect('/proposals');
 });
 
 router.get('/proposals/:id', requireLogin, (req, res) => {
@@ -163,13 +207,14 @@ router.get('/proposals/:id', requireLogin, (req, res) => {
 router.get('/proposals/:id/edit', requireLogin, (req, res) => {
   const found = loadOwnProposal(req, res);
   if (!found) return;
-  if (!canSpeakerEdit(found.proposal, found.conf)) {
+  const { proposal, conf } = found;
+  if (!canSpeakerEdit(proposal, conf)) {
     flash(req, 'error', 'This proposal can no longer be edited.');
-    return res.redirect(`/proposals/${found.proposal.id}`);
+    return res.redirect(`/proposals/${proposal.id}`);
   }
-  res.render('proposal-form', {
-    title: 'Edit proposal', conf: found.conf, openConfs: [], values: found.proposal, errors: [], proposal: found.proposal, LEVELS,
-    edit: editWindow(found.proposal, found.conf),
+  renderForm(res, 200, {
+    title: 'Edit proposal', confs: [conf], selected: [conf.id], values: proposal,
+    picks: { [conf.id]: { format: proposal.format, topic: proposal.topic } }, errors: [], proposal, edit: editWindow(proposal, conf),
   });
 });
 
@@ -181,12 +226,16 @@ router.post('/proposals/:id/edit', requireLogin, (req, res) => {
     flash(req, 'error', 'This proposal can no longer be edited.');
     return res.redirect(`/proposals/${proposal.id}`);
   }
-  const { values, errors } = readProposal(req.body, conf);
+  const common = readCommon(req.body);
+  const choice = readConferenceChoice(req.body, conf, { current: proposal });
+  const errors = [...common.errors, ...choice.errors];
   if (errors.length) {
-    return res.status(400).render('proposal-form', {
-      title: 'Edit proposal', conf, openConfs: [], values, errors, proposal, LEVELS, edit: editWindow(proposal, conf),
+    return renderForm(res, 400, {
+      title: 'Edit proposal', confs: [conf], selected: [conf.id], values: common.values,
+      picks: { [conf.id]: choice.pick }, errors, proposal, edit: editWindow(proposal, conf),
     });
   }
+  const values = { ...common.values, ...choice.pick };
   const changed = PROPOSAL_FIELDS.filter((f) => String(values[f] ?? '') !== String(proposal[f] ?? ''));
   if (changed.length) {
     transaction(() => {

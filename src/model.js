@@ -10,7 +10,7 @@ const lines = (text) => String(text || '').split(/\r?\n/).map((s) => s.trim()).f
 
 function decorateConference(conf) {
   if (!conf) return conf;
-  conf.trackList = lines(conf.tracks);
+  conf.topicList = lines(conf.topics);
   conf.formatList = lines(conf.formats).length ? lines(conf.formats) : DEFAULT_FORMATS;
   conf.cfpState = cfpState(conf);
   conf.cfpOpen = conf.cfpState === 'open';

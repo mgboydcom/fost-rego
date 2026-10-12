@@ -261,3 +261,13 @@ tr.dim { opacity: .55; }
   .hero-stat { text-align: left; }
 }
 @media (prefers-reduced-motion: reduce) { * { transition: none !important; } }
+
+/* Conference picker on the proposal form */
+.conf-picks { border: 0; padding: 0; margin: 0; display: grid; gap: 10px; }
+.conf-picks legend { font-weight: 600; font-size: .8rem; margin-bottom: 6px; padding: 0; }
+.conf-picks > p { margin: 0 0 4px; }
+.conf-pick { border: 1.5px solid var(--border); border-radius: var(--radius); padding: 14px 16px; display: grid; gap: 12px; }
+.conf-pick.on { border-color: var(--orange); background: var(--surface-alt); }
+.conf-pick-head { cursor: pointer; align-items: flex-start !important; }
+.conf-pick-head input { margin-top: 4px; }
+.conf-fields[hidden] { display: none; }

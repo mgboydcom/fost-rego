@@ -36,7 +36,7 @@ CREATE TABLE IF NOT EXISTS conferences (
   end_date             TEXT NOT NULL DEFAULT '',
   cfp_opens            TEXT NOT NULL DEFAULT '',
   cfp_closes           TEXT NOT NULL DEFAULT '',
-  tracks               TEXT NOT NULL DEFAULT '',
+  topics               TEXT NOT NULL DEFAULT '',
   formats              TEXT NOT NULL DEFAULT '',
   blind_review         INTEGER NOT NULL DEFAULT 0,
   decisions_published  INTEGER NOT NULL DEFAULT 0,
@@ -58,7 +58,7 @@ CREATE TABLE IF NOT EXISTS proposals (
   title                 TEXT NOT NULL,
   abstract              TEXT NOT NULL,
   format                TEXT NOT NULL DEFAULT '',
-  track                 TEXT NOT NULL DEFAULT '',
+  topic                 TEXT NOT NULL DEFAULT '',
   level                 TEXT NOT NULL DEFAULT '',
   co_speakers           TEXT NOT NULL DEFAULT '',
   notes                 TEXT NOT NULL DEFAULT '',
@@ -107,7 +107,11 @@ CREATE TABLE IF NOT EXISTS settings (
 // Upgrades older databases. Each step runs once. Columns that were removed from the model
 // (users.website, users.location, proposals.description) are left in place so no data is lost.
 function migrate(db) {
-  const cols = db.prepare('PRAGMA table_xinfo(users)').all().map((c) => c.name);
+  // Tracks were renamed to topics.
+  const colsOf = (t) => db.prepare(`PRAGMA table_xinfo(${t})`).all().map((c) => c.name);
+  if (colsOf('conferences').includes('tracks')) db.exec('ALTER TABLE conferences RENAME COLUMN tracks TO topics');
+  if (colsOf('proposals').includes('track')) db.exec('ALTER TABLE proposals RENAME COLUMN track TO topic');
+  const cols = colsOf('users');
   if (cols.includes('social')) db.exec('ALTER TABLE users RENAME COLUMN social TO linkedin_profile_url');
   if (!cols.includes('country')) {
     db.exec("ALTER TABLE users ADD COLUMN country TEXT NOT NULL DEFAULT ''");
