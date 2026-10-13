@@ -1,0 +1,14 @@
+# Optional: a local PostgreSQL for development. Run `docker compose up -d`.
+services:
+  db:
+    image: postgres:17
+    environment:
+      POSTGRES_USER: fost
+      POSTGRES_PASSWORD: fost
+      POSTGRES_DB: fost_cfp
+    ports:
+      - "5432:5432"
+    volumes:
+      - fost-cfp-data:/var/lib/postgresql/data
+volumes:
+  fost-cfp-data:

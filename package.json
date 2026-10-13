@@ -1,23 +1,37 @@
 {
   "name": "fost-rego",
-  "version": "1.0.0",
-  "description": "Conference call-for-proposals app: speakers submit and edit proposals, a program committee reviews and decides, and everything exports to spreadsheets.",
-  "main": "src/server.js",
-  "type": "commonjs",
+  "version": "2.0.0",
+  "private": true,
+  "description": "FOST Call for Speakers: speakers submit and edit proposals, a program committee reviews and decides, and everything exports to spreadsheets. Next.js + PostgreSQL.",
   "scripts": {
-    "start": "node --disable-warning=ExperimentalWarning src/server.js",
-    "dev": "node --disable-warning=ExperimentalWarning --watch src/server.js",
-    "seed": "node --disable-warning=ExperimentalWarning scripts/seed.js",
-    "test": "node --disable-warning=ExperimentalWarning --test test/*.test.js"
+    "dev": "next dev",
+    "build": "next build",
+    "start": "next start",
+    "db:migrate": "tsx scripts/migrate.ts",
+    "db:seed": "tsx scripts/seed.ts",
+    "typecheck": "tsc --noEmit",
+    "test": "tsx --test test/*.test.mts"
   },
   "engines": {
-    "node": ">=22.13"
+    "node": ">=20.9"
   },
   "license": "MIT",
   "dependencies": {
-    "cookie-session": "^2.1.1",
-    "ejs": "^3.1.10",
     "exceljs": "^4.4.0",
-    "express": "^5.1.0"
+    "next": "^15.5.27",
+    "pg": "^8.16.3",
+    "react": "^19.1.1",
+    "react-dom": "^19.1.1"
+  },
+  "devDependencies": {
+    "@types/node": "^22.18.12",
+    "@types/pg": "^8.15.5",
+    "@types/react": "^19.1.16",
+    "@types/react-dom": "^19.1.11",
+    "tsx": "^4.20.6",
+    "typescript": "^5.9.3"
+  },
+  "overrides": {
+    "postcss": "8.5.28"
   }
 }
