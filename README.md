@@ -69,7 +69,8 @@ submitted ──► accepted ──► speaker confirmed / declined
      └──────► withdrawn (by the speaker, at any time)
 ```
 
-- New proposals can only be submitted while a conference's call is open. Speakers can keep editing until the day before the conference starts (no start date means no deadline). Each edit bumps `version` and is logged in the proposal history.
+- New proposals can only be submitted while a conference's call is open. Speakers can keep editing until the day before the conference starts (no start date means no deadline).
+- A conference can open its call while only its month is known: choose **Month only** under Conference dates, and speakers see, for example, "June 2027". Until exact dates are added, speakers can keep editing and their proposals say "Edit deadline set once dates are confirmed". Switch to **Exact dates** when the days are confirmed. Each edit bumps `version` and is logged in the proposal history.
 - Until an organiser clicks **Publish decisions to speakers**, speakers see "Under review".
 - Changing a decision away from accepted clears the speaker's confirmation.
 
