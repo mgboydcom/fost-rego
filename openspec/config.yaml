@@ -26,6 +26,14 @@ context: |
 #       - Always state what is out of scope
 #     tasks:
 #       - Break tasks into chunks of max 2 hours
+rules:
+  design:
+    - >-
+      Include a "Data model" section with a JSON Schema (draft 2020-12) in a ```json block. Cover every
+      database table and every external payload object (events, API responses, exports) the change
+      adds, changes or relies on. Mark each new or changed property in its "description" with
+      "NEW:" or "CHANGED:", and list removed properties in the section's text. Keep types, nullability,
+      enums and formats (email, date, date-time, uri) accurate to the migration and code.
 
 # Per-operation guidance (optional)
 # Add advisory guidance for how apply and archive work should be conducted.

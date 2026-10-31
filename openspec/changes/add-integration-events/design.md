@@ -60,6 +60,272 @@ A fixed one-minute window per key, counted in the web process.
 ### 10. Data retention
 A daily step in the worker deletes payloads from the delivery log and event bodies older than 30 days once no delivery for them is still pending. It keeps a slim row (type, time, status) so the log still shows history.
 
+## Data model
+
+New tables are `events`, `webhook_endpoints`, `webhook_deliveries` and `api_keys`, plus a new `worker_heartbeat` key in the existing `settings` table. Existing tables `users`, `conferences`, `proposals` and `conference_reviewers` are read but not changed. Nothing is removed. Definitions prefixed `table_` are database rows; definitions prefixed `payload_` are what n8n receives in webhooks and API responses. `payload_*` objects use `additionalProperties: false`, so a payload carrying an organiser-only field (such as `internal_notes`) fails validation.
+
+```json
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://fost-rego/schemas/add-integration-events.json",
+  "title": "add-integration-events data model",
+  "description": "Database tables (prefixed table_) and external payloads (prefixed payload_) for this change. Existing tables are included where the change relies on them and are unchanged.",
+  "$defs": {
+    "table_events": {
+      "description": "NEW: one row per recorded event, written in the same transaction as the change.",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string", "format": "uuid", "description": "NEW: primary key; also the event id sent to receivers." },
+        "type": { "type": "string", "enum": ["speaker.registered", "speaker.profile_updated", "proposal.submitted", "proposal.updated", "proposal.withdrawn", "proposal.speaker_confirmed", "proposal.speaker_declined", "test.ping"], "description": "NEW" },
+        "version": { "type": "integer", "minimum": 1, "description": "NEW: payload format version, starts at 1." },
+        "occurred_at": { "type": "string", "format": "date-time", "description": "NEW" },
+        "data": { "type": ["object", "null"], "description": "NEW: the event's data object; set to null by the 30-day purge once no delivery is pending." }
+      },
+      "required": ["id", "type", "version", "occurred_at", "data"],
+      "additionalProperties": false
+    },
+    "table_webhook_endpoints": {
+      "description": "NEW: endpoints organisers register.",
+      "type": "object",
+      "properties": {
+        "id": { "type": "integer", "description": "NEW" },
+        "name": { "type": "string", "minLength": 1, "description": "NEW: e.g. 'n8n production'." },
+        "url": { "type": "string", "format": "uri", "description": "NEW: https only, except localhost in development." },
+        "secret": { "type": "string", "description": "NEW: signing secret; shown once in the UI, never returned again." },
+        "event_types": { "type": "array", "items": { "$ref": "#/$defs/table_events/properties/type" }, "minItems": 1, "uniqueItems": true, "description": "NEW" },
+        "paused": { "type": "boolean", "default": false, "description": "NEW" },
+        "created_by": { "type": ["integer", "null"], "description": "NEW: users.id of the organiser; null if that account is deleted." },
+        "created_at": { "type": "string", "format": "date-time", "description": "NEW" },
+        "updated_at": { "type": "string", "format": "date-time", "description": "NEW" }
+      },
+      "required": ["id", "name", "url", "secret", "event_types", "paused", "created_at", "updated_at"],
+      "additionalProperties": false
+    },
+    "table_webhook_deliveries": {
+      "description": "NEW: one row per event and subscribed endpoint, created with the event.",
+      "type": "object",
+      "properties": {
+        "id": { "type": "integer", "description": "NEW" },
+        "event_id": { "type": "string", "format": "uuid", "description": "NEW: references events.id." },
+        "endpoint_id": { "type": "integer", "description": "NEW: references webhook_endpoints.id; deleting the endpoint deletes its deliveries." },
+        "status": { "type": "string", "enum": ["pending", "delivered", "failed"], "description": "NEW" },
+        "attempts": { "type": "integer", "minimum": 0, "description": "NEW" },
+        "next_attempt_at": { "type": ["string", "null"], "format": "date-time", "description": "NEW: null once delivered or failed." },
+        "last_attempt_at": { "type": ["string", "null"], "format": "date-time", "description": "NEW" },
+        "last_response_status": { "type": ["integer", "null"], "description": "NEW: HTTP status, null on timeout or connection error." },
+        "last_error": { "type": ["string", "null"], "description": "NEW: short reason, e.g. 'timeout'." },
+        "delivered_at": { "type": ["string", "null"], "format": "date-time", "description": "NEW" },
+        "created_at": { "type": "string", "format": "date-time", "description": "NEW" }
+      },
+      "required": ["id", "event_id", "endpoint_id", "status", "attempts", "created_at"],
+      "additionalProperties": false
+    },
+    "table_api_keys": {
+      "description": "NEW: keys for automations; only a hash of the secret is stored.",
+      "type": "object",
+      "properties": {
+        "id": { "type": "integer", "description": "NEW" },
+        "name": { "type": "string", "minLength": 1, "description": "NEW" },
+        "scope": { "type": "string", "enum": ["read", "read-write"], "description": "NEW" },
+        "prefix": { "type": "string", "description": "NEW: shown to tell keys apart, e.g. 'fost_live_ab12'." },
+        "key_hash": { "type": "string", "description": "NEW: SHA-256 hex of the full key." },
+        "created_by": { "type": ["integer", "null"], "description": "NEW: users.id of the organiser." },
+        "created_at": { "type": "string", "format": "date-time", "description": "NEW" },
+        "last_used_at": { "type": ["string", "null"], "format": "date-time", "description": "NEW: updated at most once a minute." },
+        "revoked_at": { "type": ["string", "null"], "format": "date-time", "description": "NEW" }
+      },
+      "required": ["id", "name", "scope", "prefix", "key_hash", "created_at"],
+      "additionalProperties": false
+    },
+    "table_settings_worker_heartbeat": {
+      "description": "Existing settings table (unchanged structure). NEW key 'worker_heartbeat' holds the time the delivery worker last checked in.",
+      "type": "object",
+      "properties": {
+        "key": { "const": "worker_heartbeat" },
+        "value": { "type": "string", "format": "date-time" }
+      },
+      "required": ["key", "value"]
+    },
+    "table_users": {
+      "description": "Existing, unchanged. Columns this change reads to build speaker payloads.",
+      "type": "object",
+      "properties": {
+        "id": { "type": "integer" },
+        "email": { "type": "string", "format": "email" },
+        "first_name": { "type": "string" },
+        "last_name": { "type": "string" },
+        "name": { "type": "string", "description": "Generated: first_name + last_name." },
+        "role": { "type": "string", "enum": ["speaker", "reviewer", "admin"] },
+        "organization": { "type": "string" },
+        "job_title": { "type": "string" },
+        "bio": { "type": "string" },
+        "linkedin_profile_url": { "type": "string" },
+        "country": { "type": "string", "description": "ISO 3166-1 alpha-2 code or ''." },
+        "photo_url": { "type": "string" }
+      }
+    },
+    "table_conferences": {
+      "description": "Existing, unchanged. Columns this change reads to build conference payloads.",
+      "type": "object",
+      "properties": {
+        "id": { "type": "integer" },
+        "name": { "type": "string" },
+        "slug": { "type": "string" },
+        "location": { "type": "string" },
+        "website": { "type": "string" },
+        "start_date": { "type": ["string", "null"], "format": "date" },
+        "end_date": { "type": ["string", "null"], "format": "date" },
+        "cfp_opens": { "type": ["string", "null"], "format": "date" },
+        "cfp_closes": { "type": ["string", "null"], "format": "date" },
+        "decisions_published": { "type": "boolean" }
+      }
+    },
+    "table_proposals": {
+      "description": "Existing, unchanged. Columns this change reads to build proposal payloads; internal_notes, feedback_to_speaker of unpublished decisions and reviews are never sent.",
+      "type": "object",
+      "properties": {
+        "id": { "type": "integer" },
+        "conference_id": { "type": "integer" },
+        "speaker_id": { "type": "integer" },
+        "title": { "type": "string" },
+        "abstract": { "type": "string" },
+        "format": { "type": "string" },
+        "topic": { "type": "string" },
+        "level": { "type": "string" },
+        "co_speakers": { "type": "string" },
+        "status": { "type": "string", "enum": ["submitted", "accepted", "waitlisted", "rejected", "withdrawn"] },
+        "speaker_confirmation": { "type": "string", "enum": ["", "confirmed", "declined"] },
+        "version": { "type": "integer" },
+        "submitted_at": { "type": "string", "format": "date-time" },
+        "updated_at": { "type": "string", "format": "date-time" },
+        "confirmed_at": { "type": ["string", "null"], "format": "date-time" }
+      }
+    },
+    "table_conference_reviewers": {
+      "description": "Existing, unchanged. Read to answer /api/v1/conferences/{id}/committee.",
+      "type": "object",
+      "properties": { "conference_id": { "type": "integer" }, "user_id": { "type": "integer" } }
+    },
+    "payload_speaker": {
+      "description": "NEW: speaker object in events and API responses.",
+      "type": "object",
+      "properties": {
+        "id": { "type": "integer" },
+        "name": { "type": "string" },
+        "first_name": { "type": "string" },
+        "last_name": { "type": "string" },
+        "email": { "type": "string", "format": "email" },
+        "job_title": { "type": "string" },
+        "organization": { "type": "string" },
+        "bio": { "type": "string" },
+        "linkedin_profile_url": { "type": ["string", "null"], "format": "uri" },
+        "country": { "type": ["string", "null"], "description": "Country name, e.g. 'United Kingdom'." },
+        "country_code": { "type": ["string", "null"], "pattern": "^[A-Z]{2}$" },
+        "photo_url": { "type": ["string", "null"], "format": "uri" },
+        "headshot_source": { "type": "string", "enum": ["photo_url", "linkedin", "missing"] }
+      },
+      "required": ["id", "name", "first_name", "last_name", "email", "job_title", "organization", "bio", "linkedin_profile_url", "country", "country_code", "photo_url", "headshot_source"],
+      "additionalProperties": false
+    },
+    "payload_conference": {
+      "description": "NEW: conference object in events and API responses.",
+      "type": "object",
+      "properties": {
+        "id": { "type": "integer" },
+        "name": { "type": "string" },
+        "slug": { "type": "string" },
+        "location": { "type": "string" },
+        "start_date": { "type": ["string", "null"], "format": "date" },
+        "end_date": { "type": ["string", "null"], "format": "date" },
+        "date_precision": { "type": ["string", "null"], "enum": ["day", "month", null], "description": "'month' arrives with the month-only dates change; null when no dates are set." },
+        "cfp_opens": { "type": ["string", "null"], "format": "date" },
+        "cfp_closes": { "type": ["string", "null"], "format": "date" },
+        "url": { "type": "string", "format": "uri", "description": "Public call-for-proposals page." }
+      },
+      "required": ["id", "name", "slug", "location", "start_date", "end_date", "date_precision", "cfp_opens", "cfp_closes", "url"],
+      "additionalProperties": false
+    },
+    "payload_proposal": {
+      "description": "NEW: proposal object in events and API responses. status is what the speaker sees.",
+      "type": "object",
+      "properties": {
+        "id": { "type": "integer" },
+        "title": { "type": "string" },
+        "abstract": { "type": "string" },
+        "format": { "type": "string" },
+        "topic": { "type": "string" },
+        "level": { "type": "string" },
+        "co_speakers": { "type": "string" },
+        "status": { "type": "string", "enum": ["under review", "accepted", "waitlisted", "rejected", "withdrawn"] },
+        "speaker_confirmation": { "type": ["string", "null"], "enum": ["confirmed", "declined", null] },
+        "version": { "type": "integer", "minimum": 1 },
+        "submitted_at": { "type": "string", "format": "date-time" },
+        "updated_at": { "type": "string", "format": "date-time" },
+        "proposal_url": { "type": "string", "format": "uri" },
+        "review_url": { "type": "string", "format": "uri" },
+        "speaker": { "$ref": "#/$defs/payload_speaker" },
+        "conference": { "$ref": "#/$defs/payload_conference" }
+      },
+      "required": ["id", "title", "abstract", "format", "topic", "level", "co_speakers", "status", "speaker_confirmation", "version", "submitted_at", "updated_at", "proposal_url", "review_url", "speaker", "conference"],
+      "additionalProperties": false
+    },
+    "payload_event": {
+      "description": "NEW: body of every webhook delivery.",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string", "format": "uuid" },
+        "type": { "$ref": "#/$defs/table_events/properties/type" },
+        "version": { "const": 1 },
+        "occurred_at": { "type": "string", "format": "date-time" },
+        "data": {
+          "oneOf": [
+            { "type": "object", "description": "proposal.* events", "properties": { "proposal": { "$ref": "#/$defs/payload_proposal" }, "changed_fields": { "type": "array", "items": { "type": "string" }, "description": "proposal.updated only" } }, "required": ["proposal"], "additionalProperties": false },
+            { "type": "object", "description": "speaker.* events", "properties": { "speaker": { "$ref": "#/$defs/payload_speaker" }, "changed_fields": { "type": "array", "items": { "type": "string" }, "description": "speaker.profile_updated only" } }, "required": ["speaker"], "additionalProperties": false },
+            { "type": "object", "description": "test.ping", "properties": { "message": { "type": "string" } }, "required": ["message"], "additionalProperties": false }
+          ]
+        }
+      },
+      "required": ["id", "type", "version", "occurred_at", "data"],
+      "additionalProperties": false
+    },
+    "payload_committee_member": {
+      "description": "NEW: item of /api/v1/conferences/{id}/committee.",
+      "type": "object",
+      "properties": { "id": { "type": "integer" }, "name": { "type": "string" }, "email": { "type": "string", "format": "email" } },
+      "required": ["id", "name", "email"],
+      "additionalProperties": false
+    },
+    "payload_list_page": {
+      "description": "NEW: shape of every list response.",
+      "type": "object",
+      "properties": {
+        "items": { "type": "array" },
+        "next_cursor": { "type": ["string", "null"], "description": "Pass as ?cursor= to get the next page; null on the last page." }
+      },
+      "required": ["items", "next_cursor"],
+      "additionalProperties": false
+    },
+    "payload_error": {
+      "description": "NEW: body of every API error response.",
+      "type": "object",
+      "properties": {
+        "error": {
+          "type": "object",
+          "properties": {
+            "code": { "type": "string", "enum": ["unauthorized", "forbidden", "not_found", "rate_limited", "invalid_request"] },
+            "message": { "type": "string" }
+          },
+          "required": ["code", "message"],
+          "additionalProperties": false
+        }
+      },
+      "required": ["error"],
+      "additionalProperties": false
+    }
+  }
+}
+```
+
 ## Risks / Trade-offs
 
 - [The worker isn't running in production, so nothing reaches n8n] → The Integrations page shows when the worker last checked in, and warns if it is more than a few minutes ago.
