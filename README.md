@@ -98,6 +98,14 @@ Signed-in admins download from `/admin/export/<dataset>.<csv|xlsx|json>`. For au
 
 The token is shown on the exports page and can be regenerated there. Treat it like a password. In CSV output, cells that start with `=`, `+`, `-` or `@` are prefixed with `'` so spreadsheets don't run user-entered text as a formula.
 
+## Planning changes with OpenSpec
+
+This repo uses [OpenSpec](https://github.com/Fission-AI/OpenSpec) for spec-driven changes: agree what to build in writing first, then implement it. The CLI is pinned as a dev dependency (`npx openspec …`, version 1.14.3; it needs Node.js 22.12 or newer).
+
+- `openspec/specs/` holds the agreed behaviour of the app; `openspec/changes/` holds proposed changes (proposal, spec deltas, design, tasks) until they ship and are archived.
+- `openspec/config.yaml` lists the project rules every proposal must respect, such as export columns being a contract with outside automations.
+- In Claude Code, use `/opsx:propose <idea>` to draft a change, `/opsx:apply` to implement it, and `/opsx:archive` once it has shipped. `/opsx:explore`, `/opsx:update` and `/opsx:sync` are also available.
+
 ## Development
 
 ```bash
